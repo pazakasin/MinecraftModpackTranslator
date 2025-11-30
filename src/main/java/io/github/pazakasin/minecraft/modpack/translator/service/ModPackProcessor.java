@@ -37,7 +37,10 @@ public class ModPackProcessor {
     
     /**
      * ModPackProcessorのコンストラクタ。
-     * @param inputPath 処理対象ディレクトリパス、translationService 翻訳サービス、logger ログコールバック、progressUpdater 進捗コールバック
+     * @param inputPath 処理対象ディレクトリパス
+     * @param translationService 翻訳サービス
+     * @param logger ログコールバック
+     * @param progressUpdater 進捗コールバック
      */
     public ModPackProcessor(String inputPath, TranslationService translationService, 
                            Consumer<String> logger, Consumer<Integer> progressUpdater) {
@@ -149,7 +152,9 @@ public class ModPackProcessor {
     
     /**
      * 単一のMod JARファイルを処理します。
-     * @param jarFile 処理対象JARファイル、currentModNum 現在のMod番号、totalMods 全Mod数
+     * @param jarFile 処理対象JARファイル
+     * @param currentModNum 現在のMod番号
+     * @param totalMods 全Mod数
      * @return 処理結果
      * @throws Exception 処理エラー
      */

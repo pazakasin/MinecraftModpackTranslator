@@ -9,7 +9,8 @@ import io.github.pazakasin.minecraft.modpack.translator.service.TranslationServi
 public interface TranslationProvider {
     /**
      * JSON形式の言語ファイルを翻訳します。
-     * @param jsonContent 翻訳元のJSONコンテンツ（null不可）、progressCallback 進捗コールバック（null可）
+     * @param jsonContent 翻訳元のJSONコンテンツ（null不可）
+     * @param progressCallback 進捗コールバック（null可）
      * @return 翻訳後のJSONコンテンツ
      * @throws Exception 翻訳処理中のエラー
      */

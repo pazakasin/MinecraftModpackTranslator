@@ -22,7 +22,9 @@ public class LanguageFileWriter {
     
     /**
      * 言語ファイルを出力ディレクトリに書き込みます。
-     * @param modId Mod ID、enUsContent 英語ファイル内容、jaJpContent 日本語ファイル内容
+     * @param modId Mod ID
+     * @param enUsContent 英語ファイル内容
+     * @param jaJpContent 日本語ファイル内容
      * @throws IOException ファイル書き込み失敗
      */
     public void writeLanguageFiles(String modId, String enUsContent, String jaJpContent) throws IOException {

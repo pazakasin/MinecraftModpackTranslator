@@ -122,9 +122,11 @@ public class TranslationService {
     
     /**
      * JSON形式の言語ファイルを翻訳します。
-     * @param jsonContent 翻訳元のJSONコンテンツ、progressCallback 進捗コールバック（null可）
+     * @param jsonContent 翻訳元のJSONコンテンツ
+     * @param progressCallback 進捗コールバック（null可）
      * @return 翻訳後のJSONコンテンツ
-     * @throws IllegalStateException APIキー未設定、Exception 翻訳エラー
+     * @throws IllegalStateException APIキー未設定
+     * @throws Exception 翻訳エラー
      */
     public String translateJsonFile(String jsonContent, ProgressCallback progressCallback) throws Exception {
         if (currentProvider == null) {
@@ -140,7 +142,8 @@ public class TranslationService {
     public interface ProgressCallback {
         /**
          * 翻訳の進捗が更新されたときに呼び出されます。
-         * @param current 現在処理済みエントリー数、total 全エントリー数
+         * @param current 現在処理済みエントリー数
+         * @param total 全エントリー数
          */
         void onProgress(int current, int total);
     }

@@ -33,7 +33,8 @@ public class DeepLTranslationProvider implements TranslationProvider {
     
     /**
      * JSON形式の言語ファイルをDeepL APIで翻訳します。
-     * @param jsonContent 翻訳元JSONコンテンツ、progressCallback 進捗コールバック
+     * @param jsonContent 翻訳元JSONコンテンツ
+     * @param progressCallback 進捗コールバック
      * @return 翻訳後のJSONコンテンツ
      * @throws Exception API通信エラー等
      */

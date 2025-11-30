@@ -27,7 +27,12 @@ public class TranslationWorker extends SwingWorker<List<ModProcessingResult>, St
     
     /**
      * TranslationWorkerのコンストラクタ。
-     * @param inputPath 処理対象ディレクトリパス、translationService 翻訳サービス、logConsumer ログコールバック、progressConsumer 進捗コールバック、onComplete 完了コールバック、onError エラーコールバック
+     * @param inputPath 処理対象ディレクトリパス
+     * @param translationService 翻訳サービス
+     * @param logConsumer ログコールバック
+     * @param progressConsumer 進捗コールバック
+     * @param onComplete 完了コールバック
+     * @param onError エラーコールバック
      */
     public TranslationWorker(String inputPath, 
                             TranslationService translationService,
