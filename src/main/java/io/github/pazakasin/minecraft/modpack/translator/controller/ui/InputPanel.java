@@ -2,6 +2,8 @@ package io.github.pazakasin.minecraft.modpack.translator.controller.ui;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.File;
 
 /**
@@ -23,7 +25,12 @@ public class InputPanel extends JPanel {
         
         inputPathField = new JTextField();
         browseButton = new JButton("参照...");
-        browseButton.addActionListener(e -> browseDirectory());
+        browseButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                browseDirectory();
+            }
+        });
         
         add(inputPathField, BorderLayout.CENTER);
         add(browseButton, BorderLayout.EAST);

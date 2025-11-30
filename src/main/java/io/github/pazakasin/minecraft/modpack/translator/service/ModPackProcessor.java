@@ -2,9 +2,9 @@ package io.github.pazakasin.minecraft.modpack.translator.service;
 
 import io.github.pazakasin.minecraft.modpack.translator.model.ModProcessingResult;
 import io.github.pazakasin.minecraft.modpack.translator.service.processor.*;
+import io.github.pazakasin.minecraft.modpack.translator.service.callback.*;
 import java.io.*;
 import java.util.*;
-import java.util.function.Consumer;
 
 /**
  * Minecraft ModPackの翻訳処理を統括管理するクラス。
@@ -18,10 +18,10 @@ public class ModPackProcessor {
     private final TranslationService translationService;
     
     /** ログメッセージを出力するコールバック。 */
-    private final Consumer<String> logger;
+    private final LogCallback logger;
     
     /** 進捗状況を更新するコールバック。 */
-    private final Consumer<Integer> progressUpdater;
+    private final ProgressUpdateCallback progressUpdater;
     
     /** 翻訳結果の出力先ディレクトリ。デフォルトは「output/MyJPpack」。 */
     private final File outputDir;
@@ -43,7 +43,7 @@ public class ModPackProcessor {
      * @param progressUpdater 進捗コールバック
      */
     public ModPackProcessor(String inputPath, TranslationService translationService, 
-                           Consumer<String> logger, Consumer<Integer> progressUpdater) {
+                           LogCallback logger, ProgressUpdateCallback progressUpdater) {
         this.inputPath = inputPath;
         this.translationService = translationService;
         this.logger = logger;
@@ -62,9 +62,14 @@ public class ModPackProcessor {
      */
     public List<ModProcessingResult> process() throws Exception {
         File modsDir = new File(inputPath, "mods");
-        File[] jarFiles = modsDir.listFiles((dir, name) -> name.endsWith(".jar"));
+        File[] jarFiles = modsDir.listFiles(new FilenameFilter() {
+            @Override
+            public boolean accept(File dir, String name) {
+                return name.endsWith(".jar");
+            }
+        });
         
-        List<ModProcessingResult> results = new ArrayList<>();
+        List<ModProcessingResult> results = new ArrayList<ModProcessingResult>();
         
         if (jarFiles == null || jarFiles.length == 0) {
             log("modsフォルダ内にJARファイルが見つかりません。");
@@ -200,7 +205,7 @@ public class ModPackProcessor {
     }
     
     /** 進捗通知付きで翻訳を実行します。 */
-    private String translateWithProgress(String content, int currentMod, int totalMods) throws Exception {
+    private String translateWithProgress(String content, final int currentMod, final int totalMods) throws Exception {
         return translationService.translateJsonFile(content, new ProgressCallback() {
             @Override
             public void onProgress(int current, int total) {
@@ -222,14 +227,14 @@ public class ModPackProcessor {
     /** ログメッセージを出力します。 */
     private void log(String message) {
         if (logger != null) {
-            logger.accept(message);
+            logger.onLog(message);
         }
     }
     
     /** 進捗ログメッセージを出力します。 */
     private void logProgress(String message) {
         if (logger != null) {
-            logger.accept("PROGRESS:" + message);
+            logger.onLog("PROGRESS:" + message);
         }
     }
 }

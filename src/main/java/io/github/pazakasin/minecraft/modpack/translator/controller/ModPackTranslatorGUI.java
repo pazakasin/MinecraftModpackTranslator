@@ -3,6 +3,8 @@ package io.github.pazakasin.minecraft.modpack.translator.controller;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.File;
 import java.util.List;
 import java.util.Properties;
@@ -20,6 +22,7 @@ import javax.swing.UIManager;
 import io.github.pazakasin.minecraft.modpack.translator.controller.ui.*;
 import io.github.pazakasin.minecraft.modpack.translator.model.ModProcessingResult;
 import io.github.pazakasin.minecraft.modpack.translator.service.TranslationService;
+import io.github.pazakasin.minecraft.modpack.translator.service.callback.*;
 import io.github.pazakasin.minecraft.modpack.translator.util.CsvExporter;
 
 /**
@@ -126,15 +129,30 @@ public class ModPackTranslatorGUI extends JFrame {
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
         
         settingsButton = new JButton("⚙ 設定");
-        settingsButton.addActionListener(e -> openSettings());
+        settingsButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                openSettings();
+            }
+        });
         
         translateButton = new JButton("翻訳開始");
         translateButton.setFont(new Font("Dialog", Font.BOLD, 14));
-        translateButton.addActionListener(e -> startTranslation());
+        translateButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                startTranslation();
+            }
+        });
         
         exportCsvButton = new JButton("CSVエクスポート");
         exportCsvButton.setEnabled(false);
-        exportCsvButton.addActionListener(e -> exportCsv());
+        exportCsvButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                exportCsv();
+            }
+        });
         
         buttonPanel.add(settingsButton);
         buttonPanel.add(translateButton);
@@ -196,10 +214,30 @@ public class ModPackTranslatorGUI extends JFrame {
         TranslationWorker worker = new TranslationWorker(
             inputPath,
             translationService,
-            message -> logPanel.appendLog(message),
-            progress -> statusPanel.setProgressText(progress),
-            results -> onTranslationComplete(results),
-            error -> onTranslationError(error)
+            new LogCallback() {
+                @Override
+                public void onLog(String message) {
+                    logPanel.appendLog(message);
+                }
+            },
+            new LogCallback() {
+                @Override
+                public void onLog(String progress) {
+                    statusPanel.setProgressText(progress);
+                }
+            },
+            new CompletionCallback() {
+                @Override
+                public void onComplete(List<ModProcessingResult> results) {
+                    onTranslationComplete(results);
+                }
+            },
+            new ErrorCallback() {
+                @Override
+                public void onError(Exception error) {
+                    onTranslationError(error);
+                }
+            }
         );
         
         worker.execute();
@@ -268,13 +306,16 @@ public class ModPackTranslatorGUI extends JFrame {
      * @param args コマンドライン引数
      */
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            try {
-                UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-            } catch (Exception e) {
-                e.printStackTrace();
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                new ModPackTranslatorGUI().setVisible(true);
             }
-            new ModPackTranslatorGUI().setVisible(true);
         });
     }
 }

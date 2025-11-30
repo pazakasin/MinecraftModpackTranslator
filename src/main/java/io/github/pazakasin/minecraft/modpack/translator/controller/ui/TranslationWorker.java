@@ -3,9 +3,9 @@ package io.github.pazakasin.minecraft.modpack.translator.controller.ui;
 import io.github.pazakasin.minecraft.modpack.translator.model.ModProcessingResult;
 import io.github.pazakasin.minecraft.modpack.translator.service.ModPackProcessor;
 import io.github.pazakasin.minecraft.modpack.translator.service.TranslationService;
+import io.github.pazakasin.minecraft.modpack.translator.service.callback.*;
 import javax.swing.*;
 import java.util.List;
-import java.util.function.Consumer;
 
 /**
  * 翻訳処理をバックグラウンドで実行するSwingWorker。
@@ -16,36 +16,36 @@ public class TranslationWorker extends SwingWorker<List<ModProcessingResult>, St
     private final String inputPath;
     /** 翻訳サービスのインスタンス */
     private final TranslationService translationService;
-    /** ログメッセージを受け取るコンシューマー */
-    private final Consumer<String> logConsumer;
-    /** 進捗メッセージを受け取るコンシューマー */
-    private final Consumer<String> progressConsumer;
+    /** ログメッセージを受け取るコールバック */
+    private final LogCallback logCallback;
+    /** 進捗メッセージを受け取るコールバック */
+    private final LogCallback progressCallback;
     /** 処理完了時に呼ばれるコールバック */
-    private final Consumer<List<ModProcessingResult>> onComplete;
+    private final CompletionCallback completionCallback;
     /** エラー発生時に呼ばれるコールバック */
-    private final Consumer<Exception> onError;
+    private final ErrorCallback errorCallback;
     
     /**
      * TranslationWorkerのコンストラクタ。
      * @param inputPath 処理対象ディレクトリパス
      * @param translationService 翻訳サービス
-     * @param logConsumer ログコールバック
-     * @param progressConsumer 進捗コールバック
-     * @param onComplete 完了コールバック
-     * @param onError エラーコールバック
+     * @param logCallback ログコールバック
+     * @param progressCallback 進捗コールバック
+     * @param completionCallback 完了コールバック
+     * @param errorCallback エラーコールバック
      */
     public TranslationWorker(String inputPath, 
                             TranslationService translationService,
-                            Consumer<String> logConsumer,
-                            Consumer<String> progressConsumer,
-                            Consumer<List<ModProcessingResult>> onComplete,
-                            Consumer<Exception> onError) {
+                            LogCallback logCallback,
+                            LogCallback progressCallback,
+                            CompletionCallback completionCallback,
+                            ErrorCallback errorCallback) {
         this.inputPath = inputPath;
         this.translationService = translationService;
-        this.logConsumer = logConsumer;
-        this.progressConsumer = progressConsumer;
-        this.onComplete = onComplete;
-        this.onError = onError;
+        this.logCallback = logCallback;
+        this.progressCallback = progressCallback;
+        this.completionCallback = completionCallback;
+        this.errorCallback = errorCallback;
     }
     
     /**
@@ -58,8 +58,18 @@ public class TranslationWorker extends SwingWorker<List<ModProcessingResult>, St
         ModPackProcessor processor = new ModPackProcessor(
             inputPath, 
             translationService,
-            message -> publish(message),
-            progress -> {}
+            new LogCallback() {
+                @Override
+                public void onLog(String message) {
+                    publish(message);
+                }
+            },
+            new ProgressUpdateCallback() {
+                @Override
+                public void onProgressUpdate(int progress) {
+                    // 現在未使用
+                }
+            }
         );
         return processor.process();
     }
@@ -73,9 +83,9 @@ public class TranslationWorker extends SwingWorker<List<ModProcessingResult>, St
     protected void process(List<String> chunks) {
         for (String message : chunks) {
             if (message.startsWith("PROGRESS:")) {
-                progressConsumer.accept(message.substring(9));
+                progressCallback.onLog(message.substring(9));
             } else {
-                logConsumer.accept(message);
+                logCallback.onLog(message);
             }
         }
     }
@@ -87,9 +97,9 @@ public class TranslationWorker extends SwingWorker<List<ModProcessingResult>, St
     protected void done() {
         try {
             List<ModProcessingResult> results = get();
-            onComplete.accept(results);
+            completionCallback.onComplete(results);
         } catch (Exception e) {
-            onError.accept(e);
+            errorCallback.onError(e);
         }
     }
 }
