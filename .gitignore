@@ -27,4 +27,3 @@ replay_pid*
 #add
 /.settings/
 translator_settings.properties
-.gitignore

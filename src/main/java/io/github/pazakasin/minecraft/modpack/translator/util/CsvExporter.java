@@ -12,13 +12,18 @@ import java.util.Date;
 import java.util.List;
 
 /**
- * 処理結果をCSVファイルにエクスポートするクラス
+ * 処理結果をCSVファイルにエクスポートするクラス。
+ * BOM付きUTF-8でExcel互換の形式で出力。
  */
 public class CsvExporter {
+    /** CSVファイルの出力先ディレクトリ。 */
     private static final String OUTPUT_DIR = "output";
 
     /**
-     * 処理結果をCSVファイルとして出力
+     * 処理結果をCSVファイルとして出力します。
+     * @param results Modの処理結果リスト
+     * @return 出力したCSVファイルの絶対パス
+     * @throws IOException ファイル作成・書き込み失敗
      */
     public String export(List<ModProcessingResult> results) throws IOException {
         File outputDir = new File(OUTPUT_DIR);
@@ -75,7 +80,9 @@ public class CsvExporter {
     }
 
     /**
-     * CSV用に文字列をエスケープ
+     * CSV用に文字列をエスケープします。
+     * @param value エスケープ対象の文字列
+     * @return エスケープされた文字列
      */
     private String escapeCSV(String value) {
         if (value == null) {

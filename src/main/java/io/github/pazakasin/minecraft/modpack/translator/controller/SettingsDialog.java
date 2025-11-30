@@ -7,19 +7,31 @@ import java.io.*;
 import java.util.Properties;
 
 /**
- * 設定ダイアログ - 翻訳プロバイダーとAPIキーの設定
+ * 翻訳プロバイダーとAPIキーを設定するダイアログ。
+ * 各プロバイダーのAPIキー入力とAPI取得方法の案内を提供。
  */
 public class SettingsDialog extends JDialog {
-    private JComboBox<TranslationService.TranslationProvider> providerComboBox;
+    /** 翻訳プロバイダー選択用のコンボボックス */
+    private JComboBox<TranslationService.ProviderType> providerComboBox;
+    /** Google Translation API のAPIキー入力フィールド */
     private JTextField googleApiKeyField;
+    /** DeepL API のAPIキー入力フィールド */
     private JTextField deeplApiKeyField;
+    /** ChatGPT API のAPIキー入力フィールド */
     private JTextField chatgptApiKeyField;
+    /** Claude API のAPIキー入力フィールド */
     private JTextField claudeApiKeyField;
+    /** 設定情報を保持するPropertiesオブジェクト */
     private Properties settings;
+    /** 設定ファイルのパス */
     private static final String SETTINGS_FILE = "translator_settings.properties";
-    
+    /** ユーザーが設定を保存したかどうか */
     private boolean saved = false;
     
+    /**
+     * SettingsDialogのコンストラクタ。
+     * @param parent 親フレーム
+     */
     public SettingsDialog(Frame parent) {
         super(parent, "翻訳設定", true);
         setSize(600, 400);
@@ -30,6 +42,7 @@ public class SettingsDialog extends JDialog {
         loadCurrentSettings();
     }
     
+    /** UIコンポーネントを初期化し、レイアウトを構築します。 */
     private void initComponents() {
         JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
         mainPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
@@ -37,13 +50,13 @@ public class SettingsDialog extends JDialog {
         // プロバイダー選択パネル
         JPanel providerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         providerPanel.add(new JLabel("翻訳プロバイダー:"));
-        providerComboBox = new JComboBox<>(TranslationService.TranslationProvider.values());
+        providerComboBox = new JComboBox<>(TranslationService.ProviderType.values());
         providerComboBox.setRenderer(new DefaultListCellRenderer() {
             public Component getListCellRendererComponent(JList<?> list, Object value, 
                     int index, boolean isSelected, boolean cellHasFocus) {
                 super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-                if (value instanceof TranslationService.TranslationProvider) {
-                    setText(((TranslationService.TranslationProvider) value).getDisplayName());
+                if (value instanceof TranslationService.ProviderType) {
+                    setText(((TranslationService.ProviderType) value).getDisplayName());
                 }
                 return this;
             }
@@ -57,28 +70,24 @@ public class SettingsDialog extends JDialog {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(5, 5, 5, 5);
         
-        // Google Translation API
         gbc.gridx = 0; gbc.gridy = 0; gbc.weightx = 0;
         apiKeyPanel.add(new JLabel("Google Translation API:"), gbc);
         gbc.gridx = 1; gbc.weightx = 1.0;
         googleApiKeyField = new JTextField(30);
         apiKeyPanel.add(googleApiKeyField, gbc);
         
-        // DeepL API
         gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0;
         apiKeyPanel.add(new JLabel("DeepL API:"), gbc);
         gbc.gridx = 1; gbc.weightx = 1.0;
         deeplApiKeyField = new JTextField(30);
         apiKeyPanel.add(deeplApiKeyField, gbc);
         
-        // ChatGPT API
         gbc.gridx = 0; gbc.gridy = 2; gbc.weightx = 0;
         apiKeyPanel.add(new JLabel("ChatGPT API:"), gbc);
         gbc.gridx = 1; gbc.weightx = 1.0;
         chatgptApiKeyField = new JTextField(30);
         apiKeyPanel.add(chatgptApiKeyField, gbc);
         
-        // Claude API
         gbc.gridx = 0; gbc.gridy = 3; gbc.weightx = 0;
         apiKeyPanel.add(new JLabel("Claude API:"), gbc);
         gbc.gridx = 1; gbc.weightx = 1.0;
@@ -117,7 +126,6 @@ public class SettingsDialog extends JDialog {
         buttonPanel.add(saveButton);
         buttonPanel.add(cancelButton);
         
-        // レイアウト
         JPanel topPanel = new JPanel(new BorderLayout(5, 5));
         topPanel.add(providerPanel, BorderLayout.NORTH);
         topPanel.add(apiKeyPanel, BorderLayout.CENTER);
@@ -129,6 +137,7 @@ public class SettingsDialog extends JDialog {
         add(mainPanel);
     }
     
+    /** 設定ファイルから設定を読み込みます。 */
     private Properties loadSettings() {
         Properties props = new Properties();
         File settingsFile = new File(SETTINGS_FILE);
@@ -144,11 +153,12 @@ public class SettingsDialog extends JDialog {
         return props;
     }
     
+    /** 保存された設定をUIコンポーネントに反映します。 */
     private void loadCurrentSettings() {
         String providerName = settings.getProperty("provider", "GOOGLE");
         try {
-            TranslationService.TranslationProvider provider = 
-                TranslationService.TranslationProvider.valueOf(providerName);
+            TranslationService.ProviderType provider = 
+                TranslationService.ProviderType.valueOf(providerName);
             providerComboBox.setSelectedItem(provider);
         } catch (IllegalArgumentException e) {
             providerComboBox.setSelectedIndex(0);
@@ -160,9 +170,10 @@ public class SettingsDialog extends JDialog {
         claudeApiKeyField.setText(settings.getProperty("claude.apikey", ""));
     }
     
+    /** 現在の設定内容を設定ファイルに保存します。 */
     private void saveSettings() {
-        TranslationService.TranslationProvider selectedProvider = 
-            (TranslationService.TranslationProvider) providerComboBox.getSelectedItem();
+        TranslationService.ProviderType selectedProvider = 
+            (TranslationService.ProviderType) providerComboBox.getSelectedItem();
         
         settings.setProperty("provider", selectedProvider.name());
         settings.setProperty("google.apikey", googleApiKeyField.getText().trim());
@@ -183,15 +194,28 @@ public class SettingsDialog extends JDialog {
         }
     }
     
+    /**
+     * ユーザーが設定を保存したかどうかを返します。
+     * @return 保存した場合true
+     */
     public boolean isSaved() {
         return saved;
     }
     
-    public TranslationService.TranslationProvider getSelectedProvider() {
-        return (TranslationService.TranslationProvider) providerComboBox.getSelectedItem();
+    /**
+     * 選択された翻訳プロバイダーを取得します。
+     * @return 選択されたプロバイダータイプ
+     */
+    public TranslationService.ProviderType getSelectedProvider() {
+        return (TranslationService.ProviderType) providerComboBox.getSelectedItem();
     }
     
-    public String getApiKey(TranslationService.TranslationProvider provider) {
+    /**
+     * 指定されたプロバイダーのAPIキーを取得します。
+     * @param provider プロバイダータイプ
+     * @return APIキー（未設定時は空文字列）
+     */
+    public String getApiKey(TranslationService.ProviderType provider) {
         switch (provider) {
             case GOOGLE:
                 return settings.getProperty("google.apikey", "");
@@ -206,6 +230,10 @@ public class SettingsDialog extends JDialog {
         }
     }
     
+    /**
+     * 設定ファイルから設定を読み込む静的メソッド。
+     * @return 読み込まれたPropertiesオブジェクト
+     */
     public static Properties getStoredSettings() {
         Properties props = new Properties();
         File settingsFile = new File(SETTINGS_FILE);

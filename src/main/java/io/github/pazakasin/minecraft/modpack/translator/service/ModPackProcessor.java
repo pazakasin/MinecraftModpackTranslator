@@ -1,21 +1,44 @@
 package io.github.pazakasin.minecraft.modpack.translator.service;
 
 import io.github.pazakasin.minecraft.modpack.translator.model.ModProcessingResult;
+import io.github.pazakasin.minecraft.modpack.translator.service.processor.*;
 import java.io.*;
-import java.nio.file.*;
 import java.util.*;
-import java.util.Map.Entry;
 import java.util.function.Consumer;
-import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
 
+/**
+ * Minecraft ModPackの翻訳処理を統括管理するクラス。
+ * 指定ディレクトリ内のすべてのModを解析し、en_us.jsonをja_jp.jsonに翻訳。
+ */
 public class ModPackProcessor {
+    /** 処理対象のModPackディレクトリパス。modsフォルダ内のJARを処理。 */
     private final String inputPath;
+    
+    /** 翻訳処理を実行するサービス。 */
     private final TranslationService translationService;
+    
+    /** ログメッセージを出力するコールバック。 */
     private final Consumer<String> logger;
+    
+    /** 進捗状況を更新するコールバック。 */
     private final Consumer<Integer> progressUpdater;
+    
+    /** 翻訳結果の出力先ディレクトリ。デフォルトは「output/MyJPpack」。 */
     private final File outputDir;
     
+    /** JARファイル内の言語ファイルを解析するアナライザー。 */
+    private final JarFileAnalyzer jarAnalyzer;
+    
+    /** 言語ファイルをディスクに書き込むライター。 */
+    private final LanguageFileWriter fileWriter;
+    
+    /** 翻訳対象テキストの文字数をカウントするカウンター。 */
+    private final CharacterCounter charCounter;
+    
+    /**
+     * ModPackProcessorのコンストラクタ。
+     * @param inputPath 処理対象ディレクトリパス、translationService 翻訳サービス、logger ログコールバック、progressUpdater 進捗コールバック
+     */
     public ModPackProcessor(String inputPath, TranslationService translationService, 
                            Consumer<String> logger, Consumer<Integer> progressUpdater) {
         this.inputPath = inputPath;
@@ -23,29 +46,29 @@ public class ModPackProcessor {
         this.logger = logger;
         this.progressUpdater = progressUpdater;
         this.outputDir = new File("output/MyJPpack");
+        
+        this.jarAnalyzer = new JarFileAnalyzer();
+        this.fileWriter = new LanguageFileWriter(outputDir);
+        this.charCounter = new CharacterCounter();
     }
     
+    /**
+     * ModPack全体の翻訳処理を実行します。
+     * @return 各Modの処理結果リスト
+     * @throws Exception ファイルアクセスエラー等
+     */
     public List<ModProcessingResult> process() throws Exception {
         File modsDir = new File(inputPath, "mods");
-        File[] jarFiles = modsDir.listFiles(new FilenameFilter() {
-            public boolean accept(File dir, String name) {
-                return name.endsWith(".jar");
-            }
-        });
+        File[] jarFiles = modsDir.listFiles((dir, name) -> name.endsWith(".jar"));
         
-        List<ModProcessingResult> results = new ArrayList<ModProcessingResult>();
+        List<ModProcessingResult> results = new ArrayList<>();
         
         if (jarFiles == null || jarFiles.length == 0) {
             log("modsフォルダ内にJARファイルが見つかりません。");
             return results;
         }
         
-        log("=== Mod一覧 ===");
-        log("検出されたMod数: " + jarFiles.length);
-        for (File jarFile : jarFiles) {
-            log("  - " + jarFile.getName());
-        }
-        log("");
+        logModList(jarFiles);
         
         log("=== 翻訳処理開始 ===");
         int processed = 0;
@@ -62,206 +85,140 @@ public class ModPackProcessor {
                 results.add(result);
                 processed++;
                 
-                if (result.hasJaJp) {
-                    log(String.format("[%d/%d][既存] %s - 日本語ファイルが存在します", 
-                        currentModNum, totalMods, jarFile.getName()));
+                logProcessingResult(result, currentModNum, totalMods, jarFile.getName());
+                
+                if (result.hasJaJp && !result.translated) {
                     skipped++;
-                } else if (result.translated) {
-                    if (result.translationSuccess) {
-                        log(String.format("[%d/%d][翻訳] %s - 翻訳完了 (%d文字)", 
-                            currentModNum, totalMods, jarFile.getName(), result.characterCount));
-                        translated++;
-                    } else {
-                        log(String.format("[%d/%d][失敗] %s - 翻訳に失敗しました", 
-                            currentModNum, totalMods, jarFile.getName()));
-                    }
-                } else {
-                    log(String.format("[%d/%d][スキップ] %s - 英語ファイルが見つかりません", 
-                        currentModNum, totalMods, jarFile.getName()));
+                } else if (result.translated && result.translationSuccess) {
+                    translated++;
+                } else if (!result.hasEnUs) {
                     skipped++;
                 }
             } catch (Exception e) {
                 log(String.format("[%d/%d][エラー] %s: %s", 
                     currentModNum, totalMods, jarFile.getName(), e.getMessage()));
                 
-                ModProcessingResult errorResult = new ModProcessingResult();
-                errorResult.modName = jarFile.getName().replace(".jar", "");
-                errorResult.langFolderPath = "エラー";
-                errorResult.translationSuccess = false;
+                ModProcessingResult errorResult = createErrorResult(jarFile);
                 results.add(errorResult);
             }
         }
         
+        logSummary(processed, translated, skipped);
+        
+        return results;
+    }
+    
+    /** Mod一覧をログ出力します。 */
+    private void logModList(File[] jarFiles) {
+        log("=== Mod一覧 ===");
+        log("検出されたMod数: " + jarFiles.length);
+        for (File jarFile : jarFiles) {
+            log("  - " + jarFile.getName());
+        }
+        log("");
+    }
+    
+    /** 個別Modの処理結果をログ出力します。 */
+    private void logProcessingResult(ModProcessingResult result, int current, int total, String fileName) {
+        if (result.hasJaJp && !result.translated) {
+            log(String.format("[%d/%d][既存] %s - 日本語ファイルが存在します", 
+                current, total, fileName));
+        } else if (result.translated) {
+            if (result.translationSuccess) {
+                log(String.format("[%d/%d][翻訳] %s - 翻訳完了 (%d文字)", 
+                    current, total, fileName, result.characterCount));
+            } else {
+                log(String.format("[%d/%d][失敗] %s - 翻訳に失敗しました", 
+                    current, total, fileName));
+            }
+        } else {
+            log(String.format("[%d/%d][スキップ] %s - 英語ファイルが見つかりません", 
+                current, total, fileName));
+        }
+    }
+    
+    /** 処理完了時のサマリーをログ出力します。 */
+    private void logSummary(int processed, int translated, int skipped) {
         log("");
         log("=== 処理完了 ===");
         log("処理したMod数: " + processed);
         log("翻訳したMod数: " + translated);
         log("スキップしたMod数: " + skipped);
         log("出力先: " + outputDir.getAbsolutePath());
-        
-        return results;
     }
     
+    /**
+     * 単一のMod JARファイルを処理します。
+     * @param jarFile 処理対象JARファイル、currentModNum 現在のMod番号、totalMods 全Mod数
+     * @return 処理結果
+     * @throws Exception 処理エラー
+     */
     private ModProcessingResult processModJar(File jarFile, int currentModNum, int totalMods) throws Exception {
         ModProcessingResult result = new ModProcessingResult();
         result.modName = jarFile.getName().replace(".jar", "");
         
-        try (JarFile jar = new JarFile(jarFile)) {
-            Enumeration<JarEntry> entries = jar.entries();
-            String modId = null;
-            String enUsContent = null;
-            String jaJpContent = null;
-            String langFolderPath = null;
-            
-            while (entries.hasMoreElements()) {
-                JarEntry entry = entries.nextElement();
-                String entryName = entry.getName();
+        JarFileAnalyzer.LanguageFileInfo langInfo = jarAnalyzer.analyze(jarFile);
+        
+        result.langFolderPath = langInfo.langFolderPath;
+        result.hasEnUs = langInfo.hasEnUs;
+        result.hasJaJp = langInfo.hasJaJp;
+        
+        if (langInfo.modId == null || langInfo.enUsContent == null) {
+            result.translationSuccess = false;
+            return result;
+        }
+        
+        result.characterCount = charCounter.countCharacters(langInfo.enUsContent);
+        
+        if (langInfo.jaJpContent != null) {
+            fileWriter.writeLanguageFiles(langInfo.modId, langInfo.enUsContent, langInfo.jaJpContent);
+            result.translationSuccess = true;
+        } else {
+            try {
+                String translatedContent = translateWithProgress(
+                    langInfo.enUsContent, currentModNum, totalMods);
                 
-                if (entryName.contains("assets/") && entryName.endsWith("/lang/en_us.json")) {
-                    modId = extractModId(entryName);
-                    langFolderPath = extractLangFolderPath(entryName);
-                    enUsContent = readEntry(jar, entry);
-                    result.hasEnUs = true;
-                } else if (entryName.contains("assets/") && entryName.endsWith("/lang/ja_jp.json")) {
-                    if (modId == null) {
-                        modId = extractModId(entryName);
-                        langFolderPath = extractLangFolderPath(entryName);
-                    }
-                    jaJpContent = readEntry(jar, entry);
-                    result.hasJaJp = true;
-                }
-            }
-            
-            result.langFolderPath = langFolderPath != null ? langFolderPath : "見つかりません";
-            
-            if (modId == null || enUsContent == null) {
-                result.translationSuccess = false;
-                return result;
-            }
-            
-            File langDir = new File(outputDir, "assets/" + modId + "/lang");
-            langDir.mkdirs();
-            
-            Files.write(new File(langDir, "en_us.json").toPath(), 
-                       enUsContent.getBytes("UTF-8"));
-            
-            result.characterCount = countCharacters(enUsContent);
-            
-            if (jaJpContent != null) {
-                Files.write(new File(langDir, "ja_jp.json").toPath(), 
-                           jaJpContent.getBytes("UTF-8"));
+                fileWriter.writeLanguageFiles(langInfo.modId, langInfo.enUsContent, translatedContent);
+                result.translated = true;
                 result.translationSuccess = true;
-            } else {
-                try {
-                    final int finalCurrentModNum = currentModNum;
-                    final int finalTotalMods = totalMods;
-                    
-                    String translatedContent = translationService.translateJsonFile(
-                        enUsContent, 
-                        new TranslationService.ProgressCallback() {
-                            public void onProgress(int current, int total) {
-                                logProgress(String.format("[%d/%d] 翻訳中: %d/%d エントリー", 
-                                    finalCurrentModNum, finalTotalMods, current, total));
-                            }
-                        }
-                    );
-                    Files.write(new File(langDir, "ja_jp.json").toPath(), 
-                               translatedContent.getBytes("UTF-8"));
-                    result.translated = true;
-                    result.translationSuccess = true;
-                    
-                    logProgress(" ");
-                } catch (Exception e) {
-                    result.translated = true;
-                    result.translationSuccess = false;
-                    logProgress(" ");
-                    throw e;
-                }
+                
+                logProgress(" ");
+            } catch (Exception e) {
+                result.translated = true;
+                result.translationSuccess = false;
+                logProgress(" ");
+                throw e;
             }
         }
         
         return result;
     }
     
-    private String extractModId(String path) {
-        String[] parts = path.split("/");
-        for (int i = 0; i < parts.length - 1; i++) {
-            if (parts[i].equals("assets")) {
-                return parts[i + 1];
-            }
-        }
-        return "unknown";
+    /** 進捗通知付きで翻訳を実行します。 */
+    private String translateWithProgress(String content, int currentMod, int totalMods) throws Exception {
+        return translationService.translateJsonFile(content, (current, total) -> {
+            logProgress(String.format("[%d/%d] 翻訳中: %d/%d エントリー", 
+                currentMod, totalMods, current, total));
+        });
     }
     
-    private String extractLangFolderPath(String path) {
-        int langIndex = path.indexOf("/lang/");
-        if (langIndex != -1) {
-            return path.substring(0, langIndex + 5);
-        }
-        return path;
+    /** エラー発生時の処理結果を生成します。 */
+    private ModProcessingResult createErrorResult(File jarFile) {
+        ModProcessingResult errorResult = new ModProcessingResult();
+        errorResult.modName = jarFile.getName().replace(".jar", "");
+        errorResult.langFolderPath = "エラー";
+        errorResult.translationSuccess = false;
+        return errorResult;
     }
     
-    private String readEntry(JarFile jar, JarEntry entry) throws IOException {
-        try (InputStream is = jar.getInputStream(entry);
-             BufferedReader reader = new BufferedReader(new InputStreamReader(is, "UTF-8"))) {
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                sb.append(line).append("\n");
-            }
-            return sb.toString();
-        }
-    }
-    
-    private int countCharacters(String jsonContent) {
-        int count = 0;
-        try {
-            boolean inValue = false;
-            boolean escaping = false;
-            
-            for (int i = 0; i < jsonContent.length(); i++) {
-                char c = jsonContent.charAt(i);
-                
-                if (escaping) {
-                    escaping = false;
-                    if (inValue) count++;
-                    continue;
-                }
-                
-                if (c == '\\') {
-                    escaping = true;
-                    continue;
-                }
-                
-                if (c == ':' && !inValue) {
-                    for (int j = i + 1; j < jsonContent.length(); j++) {
-                        if (jsonContent.charAt(j) == '"') {
-                            inValue = true;
-                            i = j;
-                            break;
-                        } else if (jsonContent.charAt(j) != ' ' && jsonContent.charAt(j) != '\n') {
-                            break;
-                        }
-                    }
-                } else if (c == '"' && inValue) {
-                    inValue = false;
-                } else if (inValue && c != '\n' && c != '\r') {
-                    count++;
-                }
-            }
-        } catch (Exception e) {
-            return 0;
-        }
-        
-        return count;
-    }
-    
+    /** ログメッセージを出力します。 */
     private void log(String message) {
         if (logger != null) {
             logger.accept(message);
         }
     }
     
+    /** 進捗ログメッセージを出力します。 */
     private void logProgress(String message) {
         if (logger != null) {
             logger.accept("PROGRESS:" + message);
