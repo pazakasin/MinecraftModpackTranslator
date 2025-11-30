@@ -1,7 +1,7 @@
 package io.github.pazakasin.minecraft.modpack.translator.service.provider;
 
 import com.google.gson.*;
-import io.github.pazakasin.minecraft.modpack.translator.service.TranslationService.ProgressCallback;
+import io.github.pazakasin.minecraft.modpack.translator.service.ProgressCallback;
 import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;

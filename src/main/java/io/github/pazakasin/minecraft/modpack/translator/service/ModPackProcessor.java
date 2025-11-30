@@ -201,9 +201,12 @@ public class ModPackProcessor {
     
     /** 進捗通知付きで翻訳を実行します。 */
     private String translateWithProgress(String content, int currentMod, int totalMods) throws Exception {
-        return translationService.translateJsonFile(content, (current, total) -> {
-            logProgress(String.format("[%d/%d] 翻訳中: %d/%d エントリー", 
-                currentMod, totalMods, current, total));
+        return translationService.translateJsonFile(content, new ProgressCallback() {
+            @Override
+            public void onProgress(int current, int total) {
+                logProgress(String.format("[%d/%d] 翻訳中: %d/%d エントリー", 
+                    currentMod, totalMods, current, total));
+            }
         });
     }
     

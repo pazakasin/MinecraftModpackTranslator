@@ -136,15 +136,5 @@ public class TranslationService {
         return currentProvider.translateJsonFile(jsonContent, progressCallback);
     }
     
-    /**
-     * 翻訳の進捗を通知するためのコールバックインターフェース。
-     */
-    public interface ProgressCallback {
-        /**
-         * 翻訳の進捗が更新されたときに呼び出されます。
-         * @param current 現在処理済みエントリー数
-         * @param total 全エントリー数
-         */
-        void onProgress(int current, int total);
-    }
+
 }
