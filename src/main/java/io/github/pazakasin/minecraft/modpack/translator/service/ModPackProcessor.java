@@ -1,8 +1,10 @@
 package io.github.pazakasin.minecraft.modpack.translator.service;
 
 import io.github.pazakasin.minecraft.modpack.translator.model.ModProcessingResult;
+import io.github.pazakasin.minecraft.modpack.translator.model.QuestTranslationResult;
 import io.github.pazakasin.minecraft.modpack.translator.service.processor.*;
 import io.github.pazakasin.minecraft.modpack.translator.service.callback.*;
+import io.github.pazakasin.minecraft.modpack.translator.service.quest.QuestFileProcessor;
 import java.io.*;
 import java.util.*;
 
@@ -35,6 +37,9 @@ public class ModPackProcessor {
     /** 翻訳対象テキストの文字数をカウントするカウンター。 */
     private final CharacterCounter charCounter;
     
+    /** クエストファイルを処理するプロセッサー。 */
+    private final QuestFileProcessor questProcessor;
+    
     /**
      * ModPackProcessorのコンストラクタ。
      * @param inputPath 処理対象ディレクトリパス
@@ -53,6 +58,7 @@ public class ModPackProcessor {
         this.jarAnalyzer = new JarFileAnalyzer();
         this.fileWriter = new LanguageFileWriter(outputDir);
         this.charCounter = new CharacterCounter();
+        this.questProcessor = new QuestFileProcessor(translationService, logger, outputDir);
     }
     
     /**
@@ -113,7 +119,34 @@ public class ModPackProcessor {
         
         logSummary(processed, translated, skipped);
         
+        processQuests(results);
+        
         return results;
+    }
+    
+    /**
+     * クエストファイルを処理します。
+     */
+    private void processQuests(List<ModProcessingResult> results) {
+        try {
+            File modpackDir = new File(inputPath);
+            QuestTranslationResult questResult = questProcessor.process(modpackDir);
+            
+            if (questResult.hasTranslation()) {
+                ModProcessingResult questModResult = new ModProcessingResult();
+                questModResult.modName = "FTB Quests";
+                questModResult.langFolderPath = "config/ftbquests";
+                questModResult.hasEnUs = questResult.hasLangFile;
+                questModResult.hasJaJp = false;
+                questModResult.translated = questResult.hasTranslation();
+                questModResult.translationSuccess = questResult.isAllSuccess();
+                questModResult.questResult = questResult;
+                
+                results.add(questModResult);
+            }
+        } catch (Exception e) {
+            log("[Quest]エラー: " + e.getMessage());
+        }
     }
     
     /** Mod一覧をログ出力します。 */

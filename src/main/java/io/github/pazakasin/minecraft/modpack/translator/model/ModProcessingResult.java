@@ -1,5 +1,7 @@
 package io.github.pazakasin.minecraft.modpack.translator.model;
 
+import io.github.pazakasin.minecraft.modpack.translator.model.QuestTranslationResult;
+
 /**
  * 個別Modの処理結果を保持するデータクラス。
  * 翻訳の実行有無、成否、文字数などの統計情報を含む。
@@ -26,10 +28,25 @@ public class ModProcessingResult {
     /** 翻訳に成功したか。 */
     public boolean translationSuccess = false;
     
+    /** クエスト翻訳結果。nullの場合クエスト処理なし。 */
+    public QuestTranslationResult questResult = null;
+    
     /**
      * ModProcessingResultのデフォルトコンストラクタ。
      */
     public ModProcessingResult() {
+    }
+    
+    /**
+     * Mod翻訳とクエスト翻訳の合計文字数を取得します。
+     * @return 合計文字数
+     */
+    public int getTotalCharacterCount() {
+        int total = characterCount;
+        if (questResult != null) {
+            total += questResult.getTotalCharacterCount();
+        }
+        return total;
     }
     
     /**
@@ -46,6 +63,7 @@ public class ModProcessingResult {
                 ", translated=" + translated +
                 ", characterCount=" + characterCount +
                 ", translationSuccess=" + translationSuccess +
+                ", questResult=" + questResult +
                 '}';
     }
 }
