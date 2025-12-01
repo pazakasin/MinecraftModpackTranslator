@@ -48,7 +48,7 @@ public class QuestFileResult {
         QuestFileResult result = new QuestFileResult();
         result.fileName = inputFile.getName();
         result.filePath = extractRelativePath(inputFile);
-        result.fileType = "Lang File";
+        result.fileType = "Quest言語ファイル";
         result.translated = translated;
         result.success = success;
         result.characterCount = charCount;
@@ -71,7 +71,7 @@ public class QuestFileResult {
         QuestFileResult result = new QuestFileResult();
         result.fileName = inputFile.getName();
         result.filePath = extractRelativePath(inputFile);
-        result.fileType = "Quest File";
+        result.fileType = "Questファイル";
         result.translated = translated;
         result.success = success;
         result.characterCount = charCount;

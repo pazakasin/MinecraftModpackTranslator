@@ -395,26 +395,6 @@ public class QuestFileProcessor {
     }
     
     /**
-     * バックアップを実行します。
-     */
-    private BackupManager.BackupResult executeBackup(File modpackDir) {
-        try {
-            log("バックアップ実行中...");
-            BackupManager.BackupResult backupResult = backupManager.backup(modpackDir);
-            
-            if (backupResult != null) {
-                log("バックアップ完了: " + backupResult.fileCount + "ファイル");
-                log("バックアップ先: " + backupResult.backupPath);
-                return backupResult;
-            }
-        } catch (Exception e) {
-            log("バックアップ失敗: " + e.getMessage());
-            log("警告: バックアップなしで翻訳を続行します");
-        }
-        return null;
-    }
-    
-    /**
      * テキストリストの合計文字数をカウントします。
      */
     private int countCharacters(List<LangFileSNBTExtractor.ExtractedText> texts) {
@@ -460,6 +440,105 @@ public class QuestFileProcessor {
             log("【重要】config\\ftbquests\\ 配下のファイルを更新しました。");
             log("元のファイルは " + result.backupPath + " にバックアップされています。");
         }
+    }
+    
+    /**
+     * 個別のLang Fileを翻訳します（選択的処理用）。
+     * @param sourceFile 元のLang Fileパス
+     * @param characterCount 文字数
+     * @return 処理結果
+     */
+    public QuestFileResult processSingleLangFile(File sourceFile, int characterCount) {
+        try {
+            log("Lang File処理開始: " + sourceFile.getName());
+            log("ファイルパス: " + sourceFile.getAbsolutePath());
+            
+            Tag<?> rootTag = parser.parse(sourceFile);
+            List<LangFileSNBTExtractor.ExtractedText> texts = extractor.extract(rootTag);
+            
+            if (texts.isEmpty()) {
+                log("翻訳対象テキストが見つかりませんでした。");
+                return QuestFileResult.createLangFileResult(
+                    sourceFile, null, false, false, 0);
+            }
+            
+            Map<String, String> translations = translateTexts(texts);
+            
+            File outputFile = new File(sourceFile.getParent(), "ja_jp.snbt");
+            applyTranslationsToLangFile(sourceFile, outputFile, translations);
+            
+            log("Lang File翻訳完了: " + outputFile.getAbsolutePath());
+            
+            return QuestFileResult.createLangFileResult(
+                sourceFile, outputFile, true, true, characterCount);
+            
+        } catch (Exception e) {
+            logError("Lang File翻訳エラー", sourceFile, e);
+            return QuestFileResult.createLangFileResult(
+                sourceFile, null, true, false, characterCount);
+        }
+    }
+    
+    /**
+     * 個別のQuest Fileを翻訳します（選択的処理用）。
+     * @param sourceFile 元のQuest Fileパス
+     * @param characterCount 文字数
+     * @return 処理結果
+     */
+    public QuestFileResult processSingleQuestFile(File sourceFile, int characterCount) {
+        try {
+            log("Quest File処理開始: " + sourceFile.getName());
+            
+            Map<String, String> texts = parser.extractTranslatableTexts(sourceFile);
+            
+            File relativePath = getRelativePath(sourceFile);
+            File outputFile = new File(outputDir, relativePath.getPath());
+            outputFile.getParentFile().mkdirs();
+            
+            if (texts.isEmpty()) {
+                log("翻訳対象テキストなし - ファイルをコピー");
+                Files.copy(sourceFile.toPath(), outputFile.toPath(), 
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                return QuestFileResult.createQuestFileResult(
+                    sourceFile, outputFile, false, true, 0);
+            }
+            
+            Map<String, String> translations = translateTextsMap(texts);
+            
+            parser.applyTranslations(sourceFile, outputFile, translations);
+            
+            log("Quest File翻訳完了: " + outputFile.getAbsolutePath());
+            
+            return QuestFileResult.createQuestFileResult(
+                sourceFile, outputFile, true, true, characterCount);
+            
+        } catch (Exception e) {
+            logError("Quest File翻訳エラー", sourceFile, e);
+            return QuestFileResult.createQuestFileResult(
+                sourceFile, null, true, false, characterCount);
+        }
+    }
+    
+    /**
+     * バックアップを実行します（外部から呼び出し可能）。
+     * @param modpackDir ModPackディレクトリ
+     * @return バックアップ結果
+     */
+    public BackupManager.BackupResult executeBackup(File modpackDir) {
+        try {
+            log("バックアップ実行中...");
+            BackupManager.BackupResult backupResult = backupManager.backup(modpackDir);
+            
+            if (backupResult != null) {
+                log("バックアップ完了: " + backupResult.fileCount + "ファイル");
+                log("バックアップ先: " + backupResult.backupPath);
+                return backupResult;
+            }
+        } catch (Exception e) {
+            log("バックアップ失敗: " + e.getMessage());
+            log("警告: バックアップなしで翻訳を続行します");
+        }
+        return null;
     }
     
     /**

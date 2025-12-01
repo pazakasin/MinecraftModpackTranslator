@@ -21,46 +21,62 @@ import javax.swing.UIManager;
 
 import io.github.pazakasin.minecraft.modpack.translator.controller.ui.*;
 import io.github.pazakasin.minecraft.modpack.translator.model.ModProcessingResult;
+import io.github.pazakasin.minecraft.modpack.translator.model.TranslatableFile;
 import io.github.pazakasin.minecraft.modpack.translator.service.TranslationService;
 import io.github.pazakasin.minecraft.modpack.translator.service.callback.*;
 import io.github.pazakasin.minecraft.modpack.translator.util.CsvExporter;
 
 /**
  * Minecraft ModPack日本語翻訳ツールのメインGUIクラス。
- * ディレクトリ選択、設定、翻訳実行、結果表示、CSVエクスポート機能を提供。
+ * ファイル解析、選択、翻訳実行、結果表示、CSVエクスポート機能を提供。
  */
 public class ModPackTranslatorGUI extends JFrame {
-    /** ディレクトリ選択用の入力パネル */
+    /** ディレクトリ選択用の入力パネル。 */
     private InputPanel inputPanel;
-    /** ステータス情報を表示するパネル */
+    
+    /** ステータス情報を表示するパネル。 */
     private StatusPanel statusPanel;
-    /** 処理結果を表形式で表示するパネル */
+    
+    /** ファイル選択UIパネル。 */
+    private FileSelectionPanel fileSelectionPanel;
+    
+    /** 処理結果を表形式で表示するパネル。 */
     private ResultTablePanel resultTablePanel;
-    /** ログメッセージを表示するパネル */
+    
+    /** ログメッセージを表示するパネル。 */
     private LogPanel logPanel;
     
-    /** 設定ダイアログを開くボタン */
+    /** 設定ダイアログを開くボタン。 */
     private JButton settingsButton;
-    /** 翻訳処理を開始するボタン */
+    
+    /** ファイル解析を開始するボタン。 */
+    private JButton analyzeButton;
+    
+    /** 翻訳処理を開始するボタン。 */
     private JButton translateButton;
-    /** 処理結果をCSVに出力するボタン */
+    
+    /** 処理結果をCSVに出力するボタン。 */
     private JButton exportCsvButton;
-    /** 翻訳処理の進捗を表示するプログレスバー */
+    
+    /** 処理の進捗を表示するプログレスバー。 */
     private JProgressBar progressBar;
     
-    /** 翻訳サービスの管理インスタンス */
+    /** 翻訳サービスの管理インスタンス。 */
     private TranslationService translationService;
-    /** 最後に実行した処理の結果リスト */
+    
+    /** 最後に実行した処理の結果リスト。 */
     private List<ModProcessingResult> processingResults;
+    
+    /** 解析された翻訳対象ファイルのリスト。 */
+    private List<TranslatableFile> analyzedFiles;
     
     /**
      * ModPackTranslatorGUIのコンストラクタ。
-     * ウィンドウの初期化、設定の読み込み、UIコンポーネントの構築を実行。
      */
     public ModPackTranslatorGUI() {
-        setTitle("Minecraft ModPack 日本語翻訳ツール v2.0");
+        setTitle("Minecraft ModPack 日本語翻訳ツール v2.1");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(1200, 700);
+        setSize(1200, 800);
         setLocationRelativeTo(null);
         
         translationService = new TranslationService();
@@ -96,6 +112,7 @@ public class ModPackTranslatorGUI extends JFrame {
         statusPanel.setStatusText("翻訳プロバイダー: " + 
                 translationService.getProvider().getDisplayName());
         
+        fileSelectionPanel = new FileSelectionPanel();
         resultTablePanel = new ResultTablePanel();
         logPanel = new LogPanel();
         
@@ -114,14 +131,23 @@ public class ModPackTranslatorGUI extends JFrame {
         
         topPanel.add(middlePanel, BorderLayout.CENTER);
         
-        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT,
-                resultTablePanel, logPanel);
-        splitPane.setResizeWeight(0.6);
+        // ファイル選択パネルと結果表示を上下に分割
+        JSplitPane upperSplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT,
+                fileSelectionPanel, resultTablePanel);
+        upperSplitPane.setResizeWeight(0.5);
+        
+        // 上部とログを上下に分割
+        JSplitPane lowerSplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT,
+                upperSplitPane, logPanel);
+        lowerSplitPane.setResizeWeight(0.7);
         
         mainPanel.add(topPanel, BorderLayout.NORTH);
-        mainPanel.add(splitPane, BorderLayout.CENTER);
+        mainPanel.add(lowerSplitPane, BorderLayout.CENTER);
         
         add(mainPanel);
+        
+        // 初期状態では翻訳ボタンを無効化
+        translateButton.setEnabled(false);
     }
     
     /** 操作ボタンを含むパネルを作成します。 */
@@ -136,8 +162,18 @@ public class ModPackTranslatorGUI extends JFrame {
             }
         });
         
-        translateButton = new JButton("翻訳開始");
+        analyzeButton = new JButton("ファイル解析");
+        analyzeButton.setFont(new Font("Dialog", Font.BOLD, 14));
+        analyzeButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                startAnalysis();
+            }
+        });
+        
+        translateButton = new JButton("翻訳実行");
         translateButton.setFont(new Font("Dialog", Font.BOLD, 14));
+        translateButton.setEnabled(false);
         translateButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -155,6 +191,7 @@ public class ModPackTranslatorGUI extends JFrame {
         });
         
         buttonPanel.add(settingsButton);
+        buttonPanel.add(analyzeButton);
         buttonPanel.add(translateButton);
         buttonPanel.add(exportCsvButton);
         
@@ -173,8 +210,8 @@ public class ModPackTranslatorGUI extends JFrame {
         }
     }
     
-    /** 翻訳処理を開始します。入力検証後、バックグラウンドで実行。 */
-    private void startTranslation() {
+    /** ファイル解析処理を開始します。 */
+    private void startAnalysis() {
         String inputPath = inputPanel.getInputPath();
         
         if (inputPath.isEmpty()) {
@@ -188,6 +225,84 @@ public class ModPackTranslatorGUI extends JFrame {
         if (!modsDir.exists() || !modsDir.isDirectory()) {
             JOptionPane.showMessageDialog(this,
                     "指定されたディレクトリに'mods'フォルダが見つかりません。",
+                    "エラー", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        
+        fileSelectionPanel.clearTable();
+        resultTablePanel.clearTable();
+        logPanel.clearLog();
+        setButtonsEnabled(false);
+        translateButton.setEnabled(false);
+        
+        AnalysisWorker worker = new AnalysisWorker(
+            inputPath,
+            new LogCallback() {
+                @Override
+                public void onLog(String message) {
+                    logPanel.appendLog(message);
+                }
+            },
+            new ProgressUpdateCallback() {
+                @Override
+                public void onProgressUpdate(int progress) {
+                    // 使用しない
+                }
+                
+                @Override
+                public void onProgressUpdate(String progress) {
+                    statusPanel.setProgressText(progress);
+                }
+            },
+            new AnalysisWorker.AnalysisCompletionCallback() {
+                @Override
+                public void onComplete(List<TranslatableFile> files) {
+                    onAnalysisComplete(files);
+                }
+            },
+            new AnalysisWorker.AnalysisErrorCallback() {
+                @Override
+                public void onError(Exception error) {
+                    onAnalysisError(error);
+                }
+            }
+        );
+        
+        worker.execute();
+    }
+    
+    /** 解析処理が正常に完了したときに呼ばれます。 */
+    private void onAnalysisComplete(List<TranslatableFile> files) {
+        setButtonsEnabled(true);
+        statusPanel.setProgressText(" ");
+        
+        analyzedFiles = files;
+        fileSelectionPanel.updateFileList(files);
+        translateButton.setEnabled(true);
+        
+        JOptionPane.showMessageDialog(this,
+                "ファイル解析が完了しました。\n検出されたファイル数: " + files.size(),
+                "完了", JOptionPane.INFORMATION_MESSAGE);
+    }
+    
+    /** 解析処理中にエラーが発生したときに呼ばれます。 */
+    private void onAnalysisError(Exception e) {
+        setButtonsEnabled(true);
+        statusPanel.setProgressText(" ");
+        
+        JOptionPane.showMessageDialog(this,
+                "解析中にエラーが発生しました: " + e.getMessage(),
+                "エラー", JOptionPane.ERROR_MESSAGE);
+        e.printStackTrace();
+    }
+    
+    /** 翻訳処理を開始します。 */
+    private void startTranslation() {
+        List<TranslatableFile> selectedFiles = fileSelectionPanel.getSelectedFiles();
+        
+        if (selectedFiles.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "翻訳対象のファイルを選択してください。",
                     "エラー", JOptionPane.ERROR_MESSAGE);
             return;
         }
@@ -208,11 +323,12 @@ public class ModPackTranslatorGUI extends JFrame {
         }
         
         resultTablePanel.clearTable();
-        logPanel.clearLog();
         setButtonsEnabled(false);
+        translateButton.setEnabled(false);
         
-        TranslationWorker worker = new TranslationWorker(
-            inputPath,
+        SelectiveTranslationWorker worker = new SelectiveTranslationWorker(
+            inputPanel.getInputPath(),
+            selectedFiles,
             translationService,
             new LogCallback() {
                 @Override
@@ -220,19 +336,24 @@ public class ModPackTranslatorGUI extends JFrame {
                     logPanel.appendLog(message);
                 }
             },
-            new LogCallback() {
+            new ProgressUpdateCallback() {
                 @Override
-                public void onLog(String progress) {
+                public void onProgressUpdate(int progress) {
+                    // 使用しない
+                }
+                
+                @Override
+                public void onProgressUpdate(String progress) {
                     statusPanel.setProgressText(progress);
                 }
             },
-            new CompletionCallback() {
+            new SelectiveTranslationWorker.TranslationCompletionCallback() {
                 @Override
                 public void onComplete(List<ModProcessingResult> results) {
                     onTranslationComplete(results);
                 }
             },
-            new ErrorCallback() {
+            new SelectiveTranslationWorker.TranslationErrorCallback() {
                 @Override
                 public void onError(Exception error) {
                     onTranslationError(error);
@@ -246,6 +367,7 @@ public class ModPackTranslatorGUI extends JFrame {
     /** 翻訳処理が正常に完了したときに呼ばれます。 */
     private void onTranslationComplete(List<ModProcessingResult> results) {
         setButtonsEnabled(true);
+        translateButton.setEnabled(true);
         statusPanel.setProgressText(" ");
         
         processingResults = results;
@@ -260,6 +382,7 @@ public class ModPackTranslatorGUI extends JFrame {
     /** 翻訳処理中にエラーが発生したときに呼ばれます。 */
     private void onTranslationError(Exception e) {
         setButtonsEnabled(true);
+        translateButton.setEnabled(true);
         statusPanel.setProgressText(" ");
         
         JOptionPane.showMessageDialog(this,
@@ -270,7 +393,7 @@ public class ModPackTranslatorGUI extends JFrame {
     
     /** ボタンと入力パネルの有効/無効を切り替えます。 */
     private void setButtonsEnabled(boolean enabled) {
-        translateButton.setEnabled(enabled);
+        analyzeButton.setEnabled(enabled);
         settingsButton.setEnabled(enabled);
         inputPanel.setEnabled(enabled);
     }

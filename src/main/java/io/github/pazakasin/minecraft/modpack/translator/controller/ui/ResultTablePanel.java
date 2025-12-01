@@ -26,7 +26,7 @@ public class ResultTablePanel extends JPanel {
         setBorder(BorderFactory.createTitledBorder("処理結果"));
         
         String[] columnNames = {
-            "種別", "Mod/ファイル名", "ファイルパス", 
+            "種別", "Mod/ファイル名", "パス", 
             "英語ファイル", "日本語ファイル", 
             "処理", "文字数", "結果"
         };
@@ -77,7 +77,7 @@ public class ResultTablePanel extends JPanel {
         String processType = getModProcessType(result);
         
         Object[] row = {
-            "Mod",
+            "Mod言語ファイル",
             result.modName,
             result.langFolderPath,
             result.hasEnUs ? "○" : "×",

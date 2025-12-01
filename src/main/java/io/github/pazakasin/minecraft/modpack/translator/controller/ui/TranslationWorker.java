@@ -69,6 +69,11 @@ public class TranslationWorker extends SwingWorker<List<ModProcessingResult>, St
                 public void onProgressUpdate(int progress) {
                     // 現在未使用
                 }
+                
+                @Override
+                public void onProgressUpdate(String progress) {
+                    // 現在未使用
+                }
             }
         );
         return processor.process();
