@@ -50,6 +50,9 @@ public class ModPackProcessor {
     /** クエストファイルを処理するプロセッサー。 */
     private final QuestFileProcessor questProcessor;
     
+    /** ファイル状態更新時に呼ばれるコールバック。 */
+    private FileStateUpdateCallback fileStateCallback;
+    
     /**
      * ModPackProcessorのコンストラクタ。
      * @param inputPath 処理対象ディレクトリパス
@@ -69,6 +72,25 @@ public class ModPackProcessor {
         this.fileWriter = new LanguageFileWriter(outputDir);
         this.charCounter = new CharacterCounter();
         this.questProcessor = new QuestFileProcessor(translationService, logger, outputDir);
+        this.fileStateCallback = null;
+    }
+    
+    /**
+     * ファイル状態更新コールバックを設定します。
+     * @param callback コールバック
+     */
+    public void setFileStateCallback(FileStateUpdateCallback callback) {
+        this.fileStateCallback = callback;
+    }
+    
+    /**
+     * ファイルの状態を更新し、コールバックを呼び出します。
+     * @param file 対象ファイル
+     */
+    private void updateFileState(TranslatableFile file) {
+        if (fileStateCallback != null) {
+            fileStateCallback.onFileStateUpdate(file);
+        }
     }
     
     /**
@@ -195,7 +217,7 @@ public class ModPackProcessor {
         log("処理したMod数: " + processed);
         log("翻訳したMod数: " + translated);
         log("スキップしたMod数: " + skipped);
-        log("出力先: " + outputDir.getAbsolutePath());
+        log("出力先: " + new File("output").getAbsolutePath());
     }
     
     /**
@@ -299,6 +321,7 @@ public class ModPackProcessor {
         log("選択されたファイル数: " + selectedFiles.size());
         
         List<TranslatableFile> modLangFiles = new ArrayList<TranslatableFile>();
+        List<TranslatableFile> kubeJsLangFiles = new ArrayList<TranslatableFile>();
         List<TranslatableFile> questLangFiles = new ArrayList<TranslatableFile>();
         List<TranslatableFile> questFiles = new ArrayList<TranslatableFile>();
         
@@ -306,6 +329,9 @@ public class ModPackProcessor {
             switch (file.getFileType()) {
                 case MOD_LANG_FILE:
                     modLangFiles.add(file);
+                    break;
+                case KUBEJS_LANG_FILE:
+                    kubeJsLangFiles.add(file);
                     break;
                 case QUEST_LANG_FILE:
                     questLangFiles.add(file);
@@ -320,6 +346,12 @@ public class ModPackProcessor {
             log("");
             log("=== Mod言語ファイル翻訳 ===");
             processSelectedModLangFiles(modLangFiles, results);
+        }
+        
+        if (!kubeJsLangFiles.isEmpty()) {
+            log("");
+            log("=== KubeJS言語ファイル翻訳 ===");
+            processSelectedKubeJSLangFiles(kubeJsLangFiles, results);
         }
         
         if (!questLangFiles.isEmpty() || !questFiles.isEmpty()) {
@@ -343,9 +375,96 @@ public class ModPackProcessor {
         log("処理したファイル数: " + selectedFiles.size());
         log("翻訳成功: " + translated);
         log("翻訳失敗: " + failed);
-        log("出力先: " + outputDir.getAbsolutePath());
+        log("出力先: " + new File("output").getAbsolutePath());
         
         return results;
+    }
+    
+    /** 選択されたKubeJS言語ファイルを処理します。 */
+    private void processSelectedKubeJSLangFiles(List<TranslatableFile> kubeJsFiles,
+                                                List<ModProcessingResult> results) throws Exception {
+        int totalFiles = kubeJsFiles.size();
+        
+        for (int i = 0; i < kubeJsFiles.size(); i++) {
+            TranslatableFile file = kubeJsFiles.get(i);
+            int currentNum = i + 1;
+            
+            ModProcessingResult result = new ModProcessingResult();
+            result.modName = "KubeJS - " + file.getFileId();
+            result.langFolderPath = file.getLangFolderPath();
+            result.hasEnUs = true;
+            result.hasJaJp = file.isHasExistingJaJp();
+            result.characterCount = file.getCharacterCount();
+            
+            try {
+                if (file.isHasExistingJaJp()) {
+                    file.setProcessingState(TranslatableFile.ProcessingState.EXISTING);
+                    file.setResultMessage("既存");
+                    updateFileState(file);
+                    
+                    writeKubeJSLangFiles(file);
+                    result.translationSuccess = true;
+                    
+                    log(String.format("[%d/%d][既存] %s - 日本語ファイルをコピー", 
+                        currentNum, totalFiles, file.getFileId()));
+                } else {
+                    file.setProcessingState(TranslatableFile.ProcessingState.TRANSLATING);
+                    file.setResultMessage("翻訳中");
+                    updateFileState(file);
+                    
+                    String translatedContent = translateWithProgress(
+                        file.getFileContent(), currentNum, totalFiles);
+                    
+                    writeKubeJSLangFiles(file.getFileId(), file.getFileContent(), translatedContent);
+                    result.translated = true;
+                    result.translationSuccess = true;
+                    
+                    file.setProcessingState(TranslatableFile.ProcessingState.COMPLETED);
+                    file.setResultMessage("○");
+                    updateFileState(file);
+                    
+                    log(String.format("[%d/%d][翻訳] %s - 翻訳完了 (%d文字)", 
+                        currentNum, totalFiles, file.getFileId(), file.getCharacterCount()));
+                    
+                    logProgress(" ");
+                }
+            } catch (Exception e) {
+                result.translated = true;
+                result.translationSuccess = false;
+                
+                file.setProcessingState(TranslatableFile.ProcessingState.FAILED);
+                file.setResultMessage("×");
+                updateFileState(file);
+                
+                log(String.format("[%d/%d][失敗] %s: %s", 
+                    currentNum, totalFiles, file.getFileId(), e.getMessage()));
+                
+                logProgress(" ");
+            }
+            
+            results.add(result);
+        }
+    }
+    
+    /** KubeJS言語ファイルを書き込みます（既存ファイル用）。 */
+    private void writeKubeJSLangFiles(TranslatableFile file) throws IOException {
+        writeKubeJSLangFiles(file.getFileId(), file.getFileContent(), file.getExistingJaJpContent());
+    }
+    
+    /** KubeJS言語ファイルを書き込みます。 */
+    private void writeKubeJSLangFiles(String fileId, String enUsContent, String jaJpContent) throws IOException {
+        File langDir = new File("output/kubejs/assets/" + fileId + "/lang");
+        langDir.mkdirs();
+        
+        if (enUsContent != null) {
+            java.nio.file.Files.write(new File(langDir, "en_us.json").toPath(), 
+                       enUsContent.getBytes("UTF-8"));
+        }
+        
+        if (jaJpContent != null) {
+            java.nio.file.Files.write(new File(langDir, "ja_jp.json").toPath(), 
+                       jaJpContent.getBytes("UTF-8"));
+        }
     }
     
     /** 選択されたMod言語ファイルを処理します。 */
@@ -366,6 +485,10 @@ public class ModPackProcessor {
             
             try {
                 if (file.isHasExistingJaJp()) {
+                    file.setProcessingState(TranslatableFile.ProcessingState.EXISTING);
+                    file.setResultMessage("既存");
+                    updateFileState(file);
+                    
                     fileWriter.writeLanguageFiles(file.getFileId(), 
                         file.getFileContent(), file.getExistingJaJpContent());
                     result.translationSuccess = true;
@@ -373,6 +496,10 @@ public class ModPackProcessor {
                     log(String.format("[%d/%d][既存] %s - 日本語ファイルをコピー", 
                         currentModNum, totalMods, file.getModName()));
                 } else {
+                    file.setProcessingState(TranslatableFile.ProcessingState.TRANSLATING);
+                    file.setResultMessage("翻訳中");
+                    updateFileState(file);
+                    
                     String translatedContent = translateWithProgress(
                         file.getFileContent(), currentModNum, totalMods);
                     
@@ -380,6 +507,10 @@ public class ModPackProcessor {
                         file.getFileContent(), translatedContent);
                     result.translated = true;
                     result.translationSuccess = true;
+                    
+                    file.setProcessingState(TranslatableFile.ProcessingState.COMPLETED);
+                    file.setResultMessage("○");
+                    updateFileState(file);
                     
                     log(String.format("[%d/%d][翻訳] %s - 翻訳完了 (%d文字)", 
                         currentModNum, totalMods, file.getModName(), file.getCharacterCount()));
@@ -389,6 +520,10 @@ public class ModPackProcessor {
             } catch (Exception e) {
                 result.translated = true;
                 result.translationSuccess = false;
+                
+                file.setProcessingState(TranslatableFile.ProcessingState.FAILED);
+                file.setResultMessage("×");
+                updateFileState(file);
                 
                 log(String.format("[%d/%d][失敗] %s: %s", 
                     currentModNum, totalMods, file.getModName(), e.getMessage()));
@@ -417,14 +552,37 @@ public class ModPackProcessor {
         for (TranslatableFile file : questLangFiles) {
             questResult.hasLangFile = true;
             
-            File sourceFile = new File(file.getSourceFilePath());
-            QuestFileResult fileResult = questProcessor.processSingleLangFile(
-                sourceFile, file.getCharacterCount());
+            file.setProcessingState(TranslatableFile.ProcessingState.TRANSLATING);
+            file.setResultMessage("翻訳中");
+            updateFileState(file);
             
-            questResult.fileResults.add(fileResult);
-            questResult.langFileTranslated = true;
-            questResult.langFileSuccess = fileResult.success;
-            questResult.langFileCharacterCount = file.getCharacterCount();
+            try {
+                File sourceFile = new File(file.getSourceFilePath());
+                QuestFileResult fileResult = questProcessor.processSingleLangFile(
+                    sourceFile, file.getCharacterCount());
+                
+                questResult.fileResults.add(fileResult);
+                questResult.langFileTranslated = true;
+                questResult.langFileSuccess = fileResult.success;
+                questResult.langFileCharacterCount = file.getCharacterCount();
+                
+                if (fileResult.success) {
+                    file.setProcessingState(TranslatableFile.ProcessingState.COMPLETED);
+                    file.setResultMessage("○");
+                } else {
+                    file.setProcessingState(TranslatableFile.ProcessingState.FAILED);
+                    file.setResultMessage("×");
+                }
+                
+                updateFileState(file);
+            } catch (Exception e) {
+                file.setProcessingState(TranslatableFile.ProcessingState.FAILED);
+                file.setResultMessage("×: " + e.getMessage());
+                updateFileState(file);
+                
+                log(String.format("[Quest Lang][失敗] %s: %s", 
+                    file.getModName(), e.getMessage()));
+            }
         }
         
         // Quest Fileの処理
@@ -433,21 +591,40 @@ public class ModPackProcessor {
         for (int i = 0; i < questFiles.size(); i++) {
             TranslatableFile file = questFiles.get(i);
             
+            file.setProcessingState(TranslatableFile.ProcessingState.TRANSLATING);
+            file.setResultMessage("翻訳中");
+            updateFileState(file);
+            
             logProgress(String.format("[Quest %d/%d] 翻訳中: %s", 
                 i + 1, questFiles.size(), file.getModName()));
             
-            File sourceFile = new File(file.getSourceFilePath());
-            QuestFileResult fileResult = questProcessor.processSingleQuestFile(
-                sourceFile, file.getCharacterCount());
-            
-            questResult.fileResults.add(fileResult);
-            questResult.questFileTranslated++;
-            
-            if (fileResult.success) {
-                questResult.questFileSuccess++;
+            try {
+                File sourceFile = new File(file.getSourceFilePath());
+                QuestFileResult fileResult = questProcessor.processSingleQuestFile(
+                    sourceFile, file.getCharacterCount());
+                
+                questResult.fileResults.add(fileResult);
+                questResult.questFileTranslated++;
+                
+                if (fileResult.success) {
+                    questResult.questFileSuccess++;
+                    file.setProcessingState(TranslatableFile.ProcessingState.COMPLETED);
+                    file.setResultMessage("○");
+                } else {
+                    file.setProcessingState(TranslatableFile.ProcessingState.FAILED);
+                    file.setResultMessage("×");
+                }
+                
+                updateFileState(file);
+                questResult.questFileCharacterCount += file.getCharacterCount();
+            } catch (Exception e) {
+                file.setProcessingState(TranslatableFile.ProcessingState.FAILED);
+                file.setResultMessage("×: " + e.getMessage());
+                updateFileState(file);
+                
+                log(String.format("[Quest %d/%d][失敗] %s: %s", 
+                    i + 1, questFiles.size(), file.getModName(), e.getMessage()));
             }
-            
-            questResult.questFileCharacterCount += file.getCharacterCount();
         }
         
         logProgress(" ");

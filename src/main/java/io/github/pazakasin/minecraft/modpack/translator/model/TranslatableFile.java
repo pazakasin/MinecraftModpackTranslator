@@ -14,11 +14,39 @@ public class TranslatableFile {
         /** FTBクエストの言語ファイル（en_us.snbt） */
         QUEST_LANG_FILE("Quest言語ファイル"),
         /** FTBクエストファイル（chapter*.snbt等） */
-        QUEST_FILE("Questファイル");
+        QUEST_FILE("Questファイル"),
+        /** KubeJSの言語ファイル（en_us.json） */
+        KUBEJS_LANG_FILE("KubeJS言語ファイル");
         
         private final String displayName;
         
         FileType(String displayName) {
+            this.displayName = displayName;
+        }
+        
+        public String getDisplayName() {
+            return displayName;
+        }
+    }
+    
+    /** 翻訳処理の状態を表す列挙型。 */
+    public enum ProcessingState {
+        /** 待機中（翻訳前） */
+        PENDING("待機"),
+        /** 翻訳中 */
+        TRANSLATING("翻訳中"),
+        /** 翻訳完了 */
+        COMPLETED("翻訳済"),
+        /** 翻訳失敗 */
+        FAILED("失敗"),
+        /** 既存ファイル使用 */
+        EXISTING("既存"),
+        /** 未処理（選択されていない） */
+        SKIPPED("未処理");
+        
+        private final String displayName;
+        
+        ProcessingState(String displayName) {
             this.displayName = displayName;
         }
         
@@ -60,11 +88,19 @@ public class TranslatableFile {
     /** workフォルダ内のエクスポート先パス。 */
     private String workFilePath;
     
+    /** 翻訳処理の現在の状態。 */
+    private ProcessingState processingState;
+    
+    /** 翻訳処理の結果メッセージ。 */
+    private String resultMessage;
+    
     /**
      * TranslatableFileのデフォルトコンストラクタ。
      */
     public TranslatableFile() {
         this.selected = true; // デフォルトで選択状態
+        this.processingState = ProcessingState.PENDING; // 初期状態は待機
+        this.resultMessage = "-";
     }
     
     /**
@@ -109,7 +145,7 @@ public class TranslatableFile {
                                                        int characterCount, String fileContent) {
         TranslatableFile file = new TranslatableFile();
         file.fileType = FileType.QUEST_LANG_FILE;
-        file.modName = "FTB Quests";
+        file.modName = "FTB Quests Lang";
         file.sourceFilePath = filePath;
         file.langFolderPath = extractRelativePath(filePath);
         file.fileId = fileId;
@@ -132,7 +168,9 @@ public class TranslatableFile {
                                                    int characterCount, String fileContent) {
         TranslatableFile file = new TranslatableFile();
         file.fileType = FileType.QUEST_FILE;
-        file.modName = "FTB Quests";
+        // ファイル名を抽出して識別名とする
+        File f = new File(filePath);
+        file.modName = f.getName();
         file.sourceFilePath = filePath;
         file.langFolderPath = extractRelativePath(filePath);
         file.fileId = fileId;
@@ -140,6 +178,33 @@ public class TranslatableFile {
         file.hasExistingJaJp = false;
         file.fileContent = fileContent;
         file.selected = true;
+        return file;
+    }
+    
+    /**
+     * KubeJS言語ファイル用のインスタンスを作成します。
+     * @param filePath ファイルパス
+     * @param fileId 言語ファイルID
+     * @param characterCount 文字数
+     * @param hasExistingJaJp 既存の日本語ファイルの有無
+     * @param fileContent ファイル内容
+     * @param existingJaJpContent 既存の日本語ファイル内容
+     * @return TranslatableFile
+     */
+    public static TranslatableFile createKubeJSLangFile(String filePath, String fileId,
+                                                         int characterCount, boolean hasExistingJaJp,
+                                                         String fileContent, String existingJaJpContent) {
+        TranslatableFile file = new TranslatableFile();
+        file.fileType = FileType.KUBEJS_LANG_FILE;
+        file.modName = fileId; // ファイルID（アセット名）を識別名として使用
+        file.sourceFilePath = filePath;
+        file.langFolderPath = extractKubeJSRelativePath(filePath);
+        file.fileId = fileId;
+        file.characterCount = characterCount;
+        file.hasExistingJaJp = hasExistingJaJp;
+        file.fileContent = fileContent;
+        file.existingJaJpContent = existingJaJpContent;
+        file.selected = !hasExistingJaJp;
         return file;
     }
     
@@ -152,6 +217,20 @@ public class TranslatableFile {
         
         if (configIndex != -1) {
             return path.substring(configIndex);
+        }
+        
+        return filePath;
+    }
+    
+    /**
+     * KubeJSファイルパスから相対パスを抽出します。
+     */
+    private static String extractKubeJSRelativePath(String filePath) {
+        String path = filePath.replace("\\", "/");
+        int kubeJsIndex = path.indexOf("kubejs/assets/");
+        
+        if (kubeJsIndex != -1) {
+            return path.substring(kubeJsIndex);
         }
         
         return filePath;
@@ -245,5 +324,21 @@ public class TranslatableFile {
     
     public void setWorkFilePath(String workFilePath) {
         this.workFilePath = workFilePath;
+    }
+    
+    public ProcessingState getProcessingState() {
+        return processingState;
+    }
+    
+    public void setProcessingState(ProcessingState processingState) {
+        this.processingState = processingState;
+    }
+    
+    public String getResultMessage() {
+        return resultMessage;
+    }
+    
+    public void setResultMessage(String resultMessage) {
+        this.resultMessage = resultMessage;
     }
 }

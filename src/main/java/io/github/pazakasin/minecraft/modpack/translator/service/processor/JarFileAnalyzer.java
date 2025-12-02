@@ -84,11 +84,11 @@ public class JarFileAnalyzer {
         return "unknown";
     }
     
-    /** エントリーパスから言語フォルダのパスを抽出します。 */
+    /** エントリーパスから言語ファイルのパスを抽出します（ファイル名まで含む）。 */
     private String extractLangFolderPath(String path) {
-        int langIndex = path.indexOf("/lang/");
-        if (langIndex != -1) {
-            return path.substring(0, langIndex + 5);
+        // assets/modid/lang/en_us.json 全体を返す
+        if (path.startsWith("assets/")) {
+            return path;
         }
         return path;
     }

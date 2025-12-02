@@ -70,6 +70,10 @@ public class FileAnalysisService {
         List<TranslatableFile> questFiles = analyzeQuestFiles(inputPath);
         files.addAll(questFiles);
         
+        // KubeJS言語ファイルの解析
+        List<TranslatableFile> kubeJsFiles = analyzeKubeJSFiles(inputPath);
+        files.addAll(kubeJsFiles);
+        
         // Modファイルの解析
         List<TranslatableFile> modFiles = analyzeModFiles(inputPath);
         files.addAll(modFiles);
@@ -172,6 +176,140 @@ public class FileAnalysisService {
             langInfo.enUsContent,
             langInfo.jaJpContent
         );
+    }
+    
+    /**
+     * KubeJS言語ファイルを解析します。
+     */
+    private List<TranslatableFile> analyzeKubeJSFiles(String inputPath) throws Exception {
+        List<TranslatableFile> files = new ArrayList<TranslatableFile>();
+        
+        File kubeJsDir = new File(inputPath, "kubejs/assets");
+        if (!kubeJsDir.exists() || !kubeJsDir.isDirectory()) {
+            log("");
+            log("kubejs/assetsフォルダが見つかりません。");
+            return files;
+        }
+        
+        // kubejs/assets/<id>/lang/en_us.json を検索
+        List<File> langFiles = findKubeJSLangFiles(kubeJsDir);
+        
+        if (langFiles.isEmpty()) {
+            log("");
+            log("KubeJS言語ファイルが見つかりません。");
+            return files;
+        }
+        
+        log("");
+        log("検出されたKubeJS言語ファイル数: " + langFiles.size());
+        log("");
+        
+        for (int i = 0; i < langFiles.size(); i++) {
+            File langFile = langFiles.get(i);
+            int currentNum = i + 1;
+            int totalNum = langFiles.size();
+            
+            updateProgress(String.format("[KubeJS %d/%d] 解析中: %s", 
+                currentNum, totalNum, extractKubeJSId(langFile)));
+            
+            try {
+                TranslatableFile file = analyzeKubeJSFile(langFile);
+                if (file != null) {
+                    files.add(file);
+                    log(String.format("[KubeJS %d/%d] %s - %s (%d文字)", 
+                        currentNum, totalNum, file.getFileId(),
+                        file.isHasExistingJaJp() ? "既存ja_jp有" : "翻訳対象",
+                        file.getCharacterCount()));
+                }
+            } catch (Exception e) {
+                log(String.format("[KubeJS %d/%d][エラー] %s: %s", 
+                    currentNum, totalNum, extractKubeJSId(langFile), e.getMessage()));
+            }
+        }
+        
+        updateProgress(" ");
+        return files;
+    }
+    
+    /**
+     * kubejs/assets下から言語ファイルを再帰的に検索します。
+     */
+    private List<File> findKubeJSLangFiles(File assetsDir) {
+        List<File> langFiles = new ArrayList<File>();
+        findKubeJSLangFilesRecursive(assetsDir, langFiles);
+        return langFiles;
+    }
+    
+    /**
+     * 再帰的に言語ファイルを検索します。
+     */
+    private void findKubeJSLangFilesRecursive(File dir, List<File> result) {
+        File[] files = dir.listFiles();
+        if (files == null) {
+            return;
+        }
+        
+        for (File file : files) {
+            if (file.isDirectory()) {
+                findKubeJSLangFilesRecursive(file, result);
+            } else if (file.getName().equals("en_us.json")) {
+                // kubejs/assets/<id>/lang/en_us.json のパターンを確認
+                String path = file.getAbsolutePath().replace("\\", "/");
+                if (path.contains("/lang/en_us.json")) {
+                    result.add(file);
+                }
+            }
+        }
+    }
+    
+    /**
+     * 単一のKubeJS言語ファイルを解析します。
+     */
+    private TranslatableFile analyzeKubeJSFile(File langFile) throws Exception {
+        String enUsContent = new String(Files.readAllBytes(langFile.toPath()), "UTF-8");
+        int charCount = charCounter.countCharacters(enUsContent);
+        
+        if (charCount == 0) {
+            return null;
+        }
+        
+        // 言語ファイルIDを抽出
+        String fileId = extractKubeJSId(langFile);
+        
+        // ja_jp.jsonの存在を確認
+        File jaJpFile = new File(langFile.getParent(), "ja_jp.json");
+        boolean hasJaJp = jaJpFile.exists();
+        String jaJpContent = null;
+        
+        if (hasJaJp) {
+            jaJpContent = new String(Files.readAllBytes(jaJpFile.toPath()), "UTF-8");
+        }
+        
+        return TranslatableFile.createKubeJSLangFile(
+            langFile.getAbsolutePath(),
+            fileId,
+            charCount,
+            hasJaJp,
+            enUsContent,
+            jaJpContent
+        );
+    }
+    
+    /**
+     * KubeJS言語ファイルからIDを抽出します。
+     * kubejs/assets/<id>/lang/en_us.json から <id> を取得。
+     */
+    private String extractKubeJSId(File langFile) {
+        String path = langFile.getAbsolutePath().replace("\\", "/");
+        int assetsIndex = path.indexOf("/assets/");
+        int langIndex = path.indexOf("/lang/");
+        
+        if (assetsIndex != -1 && langIndex != -1 && assetsIndex < langIndex) {
+            String idPart = path.substring(assetsIndex + 8, langIndex);
+            return idPart;
+        }
+        
+        return "unknown";
     }
     
     /**
@@ -315,6 +453,10 @@ public class FileAnalysisService {
                         exportModLangFile(file, workDir);
                         exportCount++;
                         break;
+                    case KUBEJS_LANG_FILE:
+                        exportKubeJSLangFile(file, workDir);
+                        exportCount++;
+                        break;
                     case QUEST_LANG_FILE:
                     case QUEST_FILE:
                         exportQuestFile(file, workDir);
@@ -335,6 +477,30 @@ public class FileAnalysisService {
     private void exportModLangFile(TranslatableFile file, File workDir) throws Exception {
         // work/mods/MyJPpack/assets/modid/lang/en_us.json
         File outputDir = new File(workDir, "mods/MyJPpack/assets/" + file.getFileId() + "/lang");
+        outputDir.mkdirs();
+        
+        File enUsFile = new File(outputDir, "en_us.json");
+        Files.write(enUsFile.toPath(), file.getFileContent().getBytes("UTF-8"));
+        
+        // 既存日本語ファイルがあればja_jp.jsonも出力
+        if (file.isHasExistingJaJp() && file.getExistingJaJpContent() != null) {
+            File jaJpFile = new File(outputDir, "ja_jp.json");
+            Files.write(jaJpFile.toPath(), file.getExistingJaJpContent().getBytes("UTF-8"));
+            
+            // workファイルパスはja_jp.jsonを設定（ファイル内容確認用）
+            file.setWorkFilePath(jaJpFile.getAbsolutePath());
+        } else {
+            // workファイルパスを設定
+            file.setWorkFilePath(enUsFile.getAbsolutePath());
+        }
+    }
+    
+    /**
+     * KubeJS言語ファイルをエクスポートします。
+     */
+    private void exportKubeJSLangFile(TranslatableFile file, File workDir) throws Exception {
+        // work/kubejs/assets/<id>/lang/en_us.json
+        File outputDir = new File(workDir, "kubejs/assets/" + file.getFileId() + "/lang");
         outputDir.mkdirs();
         
         File enUsFile = new File(outputDir, "en_us.json");

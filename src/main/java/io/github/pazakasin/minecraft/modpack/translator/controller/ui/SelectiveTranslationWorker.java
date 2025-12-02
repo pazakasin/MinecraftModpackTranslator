@@ -6,6 +6,7 @@ import io.github.pazakasin.minecraft.modpack.translator.service.ModPackProcessor
 import io.github.pazakasin.minecraft.modpack.translator.service.TranslationService;
 import io.github.pazakasin.minecraft.modpack.translator.service.callback.LogCallback;
 import io.github.pazakasin.minecraft.modpack.translator.service.callback.ProgressUpdateCallback;
+import io.github.pazakasin.minecraft.modpack.translator.service.callback.FileStateUpdateCallback;
 
 import javax.swing.SwingWorker;
 import java.util.List;
@@ -35,6 +36,9 @@ public class SelectiveTranslationWorker extends SwingWorker<List<ModProcessingRe
     
     /** エラー発生時に呼ばれるコールバック。 */
     private final TranslationErrorCallback errorCallback;
+    
+    /** ファイル状態更新時に呼ばれるコールバック。 */
+    private final FileStateUpdateCallback fileStateCallback;
     
     /**
      * 翻訳完了時のコールバックインタフェース。
@@ -67,6 +71,7 @@ public class SelectiveTranslationWorker extends SwingWorker<List<ModProcessingRe
      * @param progressCallback 進捗コールバック
      * @param completionCallback 完了コールバック
      * @param errorCallback エラーコールバック
+     * @param fileStateCallback ファイル状態更新コールバック
      */
     public SelectiveTranslationWorker(String inputPath,
                                      List<TranslatableFile> selectedFiles,
@@ -74,7 +79,8 @@ public class SelectiveTranslationWorker extends SwingWorker<List<ModProcessingRe
                                      LogCallback logCallback,
                                      ProgressUpdateCallback progressCallback,
                                      TranslationCompletionCallback completionCallback,
-                                     TranslationErrorCallback errorCallback) {
+                                     TranslationErrorCallback errorCallback,
+                                     FileStateUpdateCallback fileStateCallback) {
         this.inputPath = inputPath;
         this.selectedFiles = selectedFiles;
         this.translationService = translationService;
@@ -82,6 +88,7 @@ public class SelectiveTranslationWorker extends SwingWorker<List<ModProcessingRe
         this.progressCallback = progressCallback;
         this.completionCallback = completionCallback;
         this.errorCallback = errorCallback;
+        this.fileStateCallback = fileStateCallback;
     }
     
     /**
@@ -91,6 +98,9 @@ public class SelectiveTranslationWorker extends SwingWorker<List<ModProcessingRe
     protected List<ModProcessingResult> doInBackground() throws Exception {
         ModPackProcessor processor = new ModPackProcessor(
             inputPath, translationService, logCallback, progressCallback);
+        
+        // ファイル状態更新コールバックを設定
+        processor.setFileStateCallback(fileStateCallback);
         
         return processor.processSelectedFiles(selectedFiles);
     }

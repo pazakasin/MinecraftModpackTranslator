@@ -138,7 +138,10 @@ public class QuestFileProcessor {
             
             Map<String, String> translations = translateTexts(texts);
             
-            File outputFile = new File(langFile.getParent(), "ja_jp.snbt");
+            File outputBase = outputDir.getParentFile();
+            File outputLangDir = new File(outputBase, "config/ftbquests/quests/lang");
+            outputLangDir.mkdirs();
+            File outputFile = new File(outputLangDir, "ja_jp.snbt");
             applyTranslationsToLangFile(langFile, outputFile, translations);
             
             result.langFileTranslated = true;
@@ -287,7 +290,8 @@ public class QuestFileProcessor {
             }
             
             File relativePath = getRelativePath(questFile);
-            File outputFile = new File(outputDir, relativePath.getPath());
+            File outputBase = outputDir.getParentFile();
+            File outputFile = new File(outputBase, relativePath.getPath());
             outputFile.getParentFile().mkdirs();
             
             if (texts.isEmpty()) {
@@ -433,7 +437,7 @@ public class QuestFileProcessor {
         
         log("クエストファイル: " + result.questFileSuccess + "/" + result.questFileCount + "ファイル成功");
         log("合計翻訳文字数: " + result.getTotalCharacterCount() + "文字");
-        log("出力先: " + outputDir.getAbsolutePath());
+        log("出力先: " + new File("output").getAbsolutePath());
         
         if (result.hasTranslation() && result.backupPath != null) {
             log("");
@@ -464,7 +468,10 @@ public class QuestFileProcessor {
             
             Map<String, String> translations = translateTexts(texts);
             
-            File outputFile = new File(sourceFile.getParent(), "ja_jp.snbt");
+            File outputBase = outputDir.getParentFile();
+            File outputLangDir = new File(outputBase, "config/ftbquests/quests/lang");
+            outputLangDir.mkdirs();
+            File outputFile = new File(outputLangDir, "ja_jp.snbt");
             applyTranslationsToLangFile(sourceFile, outputFile, translations);
             
             log("Lang File翻訳完了: " + outputFile.getAbsolutePath());
@@ -492,7 +499,8 @@ public class QuestFileProcessor {
             Map<String, String> texts = parser.extractTranslatableTexts(sourceFile);
             
             File relativePath = getRelativePath(sourceFile);
-            File outputFile = new File(outputDir, relativePath.getPath());
+            File outputBase = outputDir.getParentFile();
+            File outputFile = new File(outputBase, relativePath.getPath());
             outputFile.getParentFile().mkdirs();
             
             if (texts.isEmpty()) {

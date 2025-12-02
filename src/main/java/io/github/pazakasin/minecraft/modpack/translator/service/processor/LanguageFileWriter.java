@@ -22,13 +22,20 @@ public class LanguageFileWriter {
     
     /**
      * 言語ファイルを出力ディレクトリに書き込みます。
+     * KubeJSの場合は専用パス、その他はリソースパック形式で出力。
      * @param modId Mod ID
      * @param enUsContent 英語ファイル内容
      * @param jaJpContent 日本語ファイル内容
      * @throws IOException ファイル書き込み失敗
      */
     public void writeLanguageFiles(String modId, String enUsContent, String jaJpContent) throws IOException {
-        File langDir = new File(outputDir, "assets/" + modId + "/lang");
+        File outputBase = outputDir.getParentFile();
+        File langDir;
+        if ("kubejs".equals(modId)) {
+            langDir = new File(outputBase, "kubejs/assets/kubejs/lang");
+        } else {
+            langDir = new File(outputBase, "resourcepacks/MyJPpack/assets/" + modId + "/lang");
+        }
         langDir.mkdirs();
         
         if (enUsContent != null) {
