@@ -20,10 +20,16 @@ public class QuestFileDetector {
     public static class QuestFileInfo {
         private final File file;
         private final QuestFileType type;
+        private final File jaJpFile;
 
         public QuestFileInfo(File file, QuestFileType type) {
+            this(file, type, null);
+        }
+
+        public QuestFileInfo(File file, QuestFileType type, File jaJpFile) {
             this.file = file;
             this.type = type;
+            this.jaJpFile = jaJpFile;
         }
 
         public File getFile() {
@@ -34,9 +40,17 @@ public class QuestFileDetector {
             return type;
         }
 
+        public boolean hasJaJp() {
+            return jaJpFile != null && jaJpFile.exists();
+        }
+
+        public File getJaJpFile() {
+            return jaJpFile;
+        }
+
         @Override
         public String toString() {
-            return "QuestFileInfo{file=" + file.getPath() + ", type=" + type + "}";
+            return "QuestFileInfo{file=" + file.getPath() + ", type=" + type + ", hasJaJp=" + hasJaJp() + "}";
         }
     }
 
@@ -69,10 +83,14 @@ public class QuestFileDetector {
         return result;
     }
 
+    /**
+     * 言語ファイル（en_us.snbt）を検出し、ja_jp.snbtの有無もチェックする。
+     */
     private void detectLangFiles(File langDir, List<QuestFileInfo> result) {
         File enUsFile = new File(langDir, "en_us.snbt");
         if (enUsFile.exists() && enUsFile.isFile()) {
-            result.add(new QuestFileInfo(enUsFile, QuestFileType.LANG_FILE));
+            File jaJpFile = new File(langDir, "ja_jp.snbt");
+            result.add(new QuestFileInfo(enUsFile, QuestFileType.LANG_FILE, jaJpFile));
         }
     }
 

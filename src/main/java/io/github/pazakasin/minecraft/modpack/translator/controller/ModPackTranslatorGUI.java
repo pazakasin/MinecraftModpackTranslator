@@ -32,6 +32,9 @@ import io.github.pazakasin.minecraft.modpack.translator.service.callback.LogCall
 import io.github.pazakasin.minecraft.modpack.translator.service.callback.ProgressUpdateCallback;
 import io.github.pazakasin.minecraft.modpack.translator.service.callback.FileStateUpdateCallback;
 import io.github.pazakasin.minecraft.modpack.translator.util.CsvExporter;
+import io.github.pazakasin.minecraft.modpack.translator.comparison.ComparisonDialog;
+import io.github.pazakasin.minecraft.modpack.translator.comparison.ComparisonResult;
+import io.github.pazakasin.minecraft.modpack.translator.comparison.TranslationComparator;
 
 /**
  * Minecraft ModPack日本語翻訳ツールのメインGUIクラス。
@@ -61,6 +64,9 @@ public class ModPackTranslatorGUI extends JFrame {
 
 	/** 処理結果をCSVに出力するボタン。 */
 	private JButton exportCsvButton;
+
+	/** 翻訳前後のファイルを比較するボタン。 */
+	private JButton compareButton;
 
 	/** 処理の進捗を表示するプログレスバー。 */
 	private JProgressBar progressBar;
@@ -188,10 +194,20 @@ public class ModPackTranslatorGUI extends JFrame {
 			}
 		});
 
+		compareButton = new JButton("翻訳比較");
+		compareButton.setEnabled(false);
+		compareButton.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				compareTranslation();
+			}
+		});
+
 		buttonPanel.add(settingsButton);
 		buttonPanel.add(analyzeButton);
 		buttonPanel.add(translateButton);
 		buttonPanel.add(exportCsvButton);
+		buttonPanel.add(compareButton);
 
 		return buttonPanel;
 	}
@@ -377,6 +393,7 @@ public class ModPackTranslatorGUI extends JFrame {
 		statusPanel.setProgressText(" ");
 
 		processingResults = results;
+		compareButton.setEnabled(true);
 
 		JOptionPane.showMessageDialog(this,
 				"翻訳が完了しました。\n出力先: output/",
@@ -423,6 +440,100 @@ public class ModPackTranslatorGUI extends JFrame {
 		} catch (Exception e) {
 			JOptionPane.showMessageDialog(this,
 					"CSVエクスポート中にエラーが発生しました: " + e.getMessage(),
+					"エラー", JOptionPane.ERROR_MESSAGE);
+			e.printStackTrace();
+		}
+	}
+
+	/** 翻訳前後のファイルを比較します。 */
+	private void compareTranslation() {
+		List<TranslatableFile> selectedFiles = unifiedFileTablePanel.getSelectedFiles();
+
+		if (selectedFiles.isEmpty()) {
+			JOptionPane.showMessageDialog(this,
+					"比較対象のファイルを選択してください。",
+					"エラー", JOptionPane.ERROR_MESSAGE);
+			return;
+		}
+
+		if (selectedFiles.size() != 1) {
+			JOptionPane.showMessageDialog(this,
+					"比較は1つのファイルのみ選択してください。",
+					"エラー", JOptionPane.ERROR_MESSAGE);
+			return;
+		}
+
+		TranslatableFile selectedFile = selectedFiles.get(0);
+		
+		// workフォルダ内の原文ファイルパスを取得
+		String workFilePath = selectedFile.getWorkFilePath();
+		if (workFilePath == null || workFilePath.isEmpty()) {
+			JOptionPane.showMessageDialog(this,
+					"workフォルダに原文ファイルが見つかりません。\nファイル解析を再実行してください。",
+					"エラー", JOptionPane.ERROR_MESSAGE);
+			return;
+		}
+		
+		File originalFile = new File(workFilePath);
+		if (!originalFile.exists()) {
+			JOptionPane.showMessageDialog(this,
+					"workフォルダの原文ファイルが見つかりません: " + workFilePath + "\nファイル解析を再実行してください。",
+					"エラー", JOptionPane.ERROR_MESSAGE);
+			return;
+		}
+		
+		// 翻訳先ファイルのパスをファイルタイプごとに決定
+		File translatedFile;
+		switch (selectedFile.getFileType()) {
+			case MOD_LANG_FILE:
+				// Mod言語ファイル: output/resourcepacks/MyJPpack/assets/modid/lang/ja_jp.json
+				translatedFile = new File("output/resourcepacks/MyJPpack/assets/" + selectedFile.getFileId() + "/lang/ja_jp.json");
+				break;
+			case KUBEJS_LANG_FILE:
+				// KubeJS言語ファイル: output/kubejs/assets/fileId/lang/ja_jp.json
+				translatedFile = new File("output/kubejs/assets/" + selectedFile.getFileId() + "/lang/ja_jp.json");
+				break;
+			case QUEST_LANG_FILE:
+				// Quest言語ファイル: output/config/ftbquests/quests/lang/ja_jp.snbt
+				translatedFile = new File("output", selectedFile.getLangFolderPath().replace("en_us.snbt", "ja_jp.snbt"));
+				break;
+			case QUEST_FILE:
+				// Questファイル: output/config/ftbquests/quests/*.snbt
+				translatedFile = new File("output", selectedFile.getLangFolderPath());
+				break;
+			default:
+				JOptionPane.showMessageDialog(this,
+						"未対応のファイルタイプです。",
+						"エラー", JOptionPane.ERROR_MESSAGE);
+				return;
+		}
+
+		if (!translatedFile.exists()) {
+			JOptionPane.showMessageDialog(this,
+					"翻訳済みファイルが見つかりません。\n" +
+					"翻訳を実行してください。\n\n" +
+					"翻訳先パス: " + translatedFile.getAbsolutePath(),
+					"エラー", JOptionPane.ERROR_MESSAGE);
+			return;
+		}
+
+		try {
+			// 比較対象ファイルのパスをログ出力
+			logPanel.appendLog("\n=== 翻訳比較開始 ===");
+			logPanel.appendLog("比較元ファイル: " + originalFile.getAbsolutePath());
+			logPanel.appendLog("比較先ファイル: " + translatedFile.getAbsolutePath());
+			
+			TranslationComparator comparator = new TranslationComparator();
+			List<ComparisonResult> results = comparator.compare(originalFile, translatedFile);
+
+			ComparisonDialog dialog = new ComparisonDialog(this);
+			dialog.showResults(results);
+			dialog.setVisible(true);
+
+			logPanel.appendLog("[比較完了] " + selectedFile.getLangFolderPath());
+		} catch (Exception e) {
+			JOptionPane.showMessageDialog(this,
+					"比較中にエラーが発生しました: " + e.getMessage(),
 					"エラー", JOptionPane.ERROR_MESSAGE);
 			e.printStackTrace();
 		}

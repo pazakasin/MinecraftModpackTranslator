@@ -138,11 +138,14 @@ public class TranslatableFile {
      * @param filePath ファイルパス
      * @param fileId ファイル識別子
      * @param characterCount 文字数
+     * @param hasExistingJaJp 既存の日本語ファイルの有無
      * @param fileContent ファイル内容
+     * @param existingJaJpContent 既存の日本語ファイル内容
      * @return TranslatableFile
      */
     public static TranslatableFile createQuestLangFile(String filePath, String fileId,
-                                                       int characterCount, String fileContent) {
+                                                       int characterCount, boolean hasExistingJaJp,
+                                                       String fileContent, String existingJaJpContent) {
         TranslatableFile file = new TranslatableFile();
         file.fileType = FileType.QUEST_LANG_FILE;
         file.modName = "FTB Quests Lang";
@@ -150,9 +153,10 @@ public class TranslatableFile {
         file.langFolderPath = extractRelativePath(filePath);
         file.fileId = fileId;
         file.characterCount = characterCount;
-        file.hasExistingJaJp = false;
+        file.hasExistingJaJp = hasExistingJaJp;
         file.fileContent = fileContent;
-        file.selected = true;
+        file.existingJaJpContent = existingJaJpContent;
+        file.selected = !hasExistingJaJp;
         return file;
     }
     

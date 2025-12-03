@@ -552,29 +552,60 @@ public class ModPackProcessor {
         for (TranslatableFile file : questLangFiles) {
             questResult.hasLangFile = true;
             
-            file.setProcessingState(TranslatableFile.ProcessingState.TRANSLATING);
-            file.setResultMessage("翻訳中");
+            // 既存ファイルがある場合はステータスを変更
+            if (file.isHasExistingJaJp()) {
+                file.setProcessingState(TranslatableFile.ProcessingState.EXISTING);
+                file.setResultMessage("既存");
+            } else {
+                file.setProcessingState(TranslatableFile.ProcessingState.TRANSLATING);
+                file.setResultMessage("翻訳中");
+            }
             updateFileState(file);
             
             try {
                 File sourceFile = new File(file.getSourceFilePath());
+                
+                // 既存のja_jp.snbtを確認
+                File existingJaJpFile = null;
+                if (file.isHasExistingJaJp() && file.getExistingJaJpContent() != null) {
+                    File langDir = sourceFile.getParentFile();
+                    existingJaJpFile = new File(langDir, "ja_jp.snbt");
+                }
+                
                 QuestFileResult fileResult = questProcessor.processSingleLangFile(
-                    sourceFile, file.getCharacterCount());
+                    sourceFile, existingJaJpFile, file.getCharacterCount());
                 
                 questResult.fileResults.add(fileResult);
-                questResult.langFileTranslated = true;
+                questResult.langFileTranslated = fileResult.translated;
                 questResult.langFileSuccess = fileResult.success;
                 questResult.langFileCharacterCount = file.getCharacterCount();
                 
                 if (fileResult.success) {
-                    file.setProcessingState(TranslatableFile.ProcessingState.COMPLETED);
-                    file.setResultMessage("○");
+                    if (fileResult.translated) {
+                        file.setProcessingState(TranslatableFile.ProcessingState.COMPLETED);
+                        file.setResultMessage("○");
+                    } else {
+                        // 既存ファイルを使用した場合
+                        file.setProcessingState(TranslatableFile.ProcessingState.EXISTING);
+                        file.setResultMessage("既存");
+                    }
                 } else {
                     file.setProcessingState(TranslatableFile.ProcessingState.FAILED);
                     file.setResultMessage("×");
                 }
                 
                 updateFileState(file);
+                
+                // ログ出力
+                if (fileResult.success) {
+                    if (fileResult.translated) {
+                        log(String.format("[Quest Lang][翻訳] %s - 翻訳完了 (%d文字)", 
+                            file.getModName(), file.getCharacterCount()));
+                    } else {
+                        log(String.format("[Quest Lang][既存] %s - 日本語ファイルをコピー", 
+                            file.getModName()));
+                    }
+                }
             } catch (Exception e) {
                 file.setProcessingState(TranslatableFile.ProcessingState.FAILED);
                 file.setResultMessage("×: " + e.getMessage());

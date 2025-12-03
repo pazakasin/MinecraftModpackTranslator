@@ -96,7 +96,7 @@ public class QuestFileProcessor {
         
         for (QuestFileDetector.QuestFileInfo fileInfo : files) {
             if (fileInfo.getType() == QuestFileDetector.QuestFileType.LANG_FILE) {
-                processLangFile(fileInfo.getFile(), result);
+                processLangFile(fileInfo.getFile(), fileInfo.getJaJpFile(), result);
             } else {
                 result.questFileCount++;
             }
@@ -117,13 +117,38 @@ public class QuestFileProcessor {
     
     /**
      * Lang File（en_us.snbt）を処理します（NBTパース使用）。
+     * 既存のja_jp.snbtがある場合はそちらを使用します。
      */
-    private void processLangFile(File langFile, QuestTranslationResult result) {
+    private void processLangFile(File langFile, File existingJaJpFile, QuestTranslationResult result) {
         result.hasLangFile = true;
         
         try {
             log("Lang File処理開始: " + langFile.getName());
             log("ファイルパス: " + langFile.getAbsolutePath());
+            
+            File outputBase = outputDir.getParentFile();
+            File outputLangDir = new File(outputBase, "config/ftbquests/quests/lang");
+            outputLangDir.mkdirs();
+            File outputFile = new File(outputLangDir, "ja_jp.snbt");
+            
+            if (existingJaJpFile != null && existingJaJpFile.exists()) {
+                log("既存の日本語ファイルが見つかりました: " + existingJaJpFile.getAbsolutePath());
+                log("既存ファイルをコピーします。");
+                
+                Files.copy(existingJaJpFile.toPath(), outputFile.toPath(), 
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                
+                result.langFileTranslated = false;
+                result.langFileSuccess = true;
+                result.langFileCharacterCount = 0;
+                
+                QuestFileResult fileResult = QuestFileResult.createLangFileResult(
+                    langFile, outputFile, false, true, 0);
+                result.fileResults.add(fileResult);
+                
+                log("既存Lang Fileコピー完了: " + outputFile.getAbsolutePath());
+                return;
+            }
             
             Tag<?> rootTag = parser.parse(langFile);
             List<LangFileSNBTExtractor.ExtractedText> texts = extractor.extract(rootTag);
@@ -138,10 +163,6 @@ public class QuestFileProcessor {
             
             Map<String, String> translations = translateTexts(texts);
             
-            File outputBase = outputDir.getParentFile();
-            File outputLangDir = new File(outputBase, "config/ftbquests/quests/lang");
-            outputLangDir.mkdirs();
-            File outputFile = new File(outputLangDir, "ja_jp.snbt");
             applyTranslationsToLangFile(langFile, outputFile, translations);
             
             result.langFileTranslated = true;
@@ -448,14 +469,34 @@ public class QuestFileProcessor {
     
     /**
      * 個別のLang Fileを翻訳します（選択的処理用）。
+     * 既存のja_jp.snbtがある場合はそちらを使用します。
      * @param sourceFile 元のLang Fileパス
+     * @param existingJaJpFile 既存のja_jp.snbtファイル（なければnull）
      * @param characterCount 文字数
      * @return 処理結果
      */
-    public QuestFileResult processSingleLangFile(File sourceFile, int characterCount) {
+    public QuestFileResult processSingleLangFile(File sourceFile, File existingJaJpFile, int characterCount) {
         try {
             log("Lang File処理開始: " + sourceFile.getName());
             log("ファイルパス: " + sourceFile.getAbsolutePath());
+            
+            File outputBase = outputDir.getParentFile();
+            File outputLangDir = new File(outputBase, "config/ftbquests/quests/lang");
+            outputLangDir.mkdirs();
+            File outputFile = new File(outputLangDir, "ja_jp.snbt");
+            
+            if (existingJaJpFile != null && existingJaJpFile.exists()) {
+                log("既存の日本語ファイルが見つかりました: " + existingJaJpFile.getAbsolutePath());
+                log("既存ファイルをコピーします。");
+                
+                Files.copy(existingJaJpFile.toPath(), outputFile.toPath(), 
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                
+                log("既存Lang Fileコピー完了: " + outputFile.getAbsolutePath());
+                
+                return QuestFileResult.createLangFileResult(
+                    sourceFile, outputFile, false, true, 0);
+            }
             
             Tag<?> rootTag = parser.parse(sourceFile);
             List<LangFileSNBTExtractor.ExtractedText> texts = extractor.extract(rootTag);
@@ -468,10 +509,6 @@ public class QuestFileProcessor {
             
             Map<String, String> translations = translateTexts(texts);
             
-            File outputBase = outputDir.getParentFile();
-            File outputLangDir = new File(outputBase, "config/ftbquests/quests/lang");
-            outputLangDir.mkdirs();
-            File outputFile = new File(outputLangDir, "ja_jp.snbt");
             applyTranslationsToLangFile(sourceFile, outputFile, translations);
             
             log("Lang File翻訳完了: " + outputFile.getAbsolutePath());

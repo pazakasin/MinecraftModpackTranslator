@@ -390,11 +390,22 @@ public class FileAnalysisService {
                     return null;
                 }
                 
+                // 既存のja_jp.snbtを確認
+                File jaJpFile = info.getJaJpFile();
+                boolean hasJaJp = info.hasJaJp();
+                String jaJpContent = null;
+                
+                if (hasJaJp && jaJpFile != null && jaJpFile.exists()) {
+                    jaJpContent = new String(Files.readAllBytes(jaJpFile.toPath()), "UTF-8");
+                }
+                
                 return TranslatableFile.createQuestLangFile(
                     file.getAbsolutePath(),
                     fileId,
                     charCount,
-                    content
+                    hasJaJp,
+                    content,
+                    jaJpContent
                 );
             } catch (Exception e) {
                 log("Quest言語ファイル解析エラー: " + file.getName() + " - " + e.getMessage());
@@ -565,8 +576,19 @@ public class FileAnalysisService {
         
         Files.copy(sourceFile.toPath(), outputFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
         
-        // workファイルパスを設定
-        file.setWorkFilePath(outputFile.getAbsolutePath());
+        // Quest言語ファイルで、既存のja_jp.snbtがある場合はそれもエクスポート
+        if (file.getFileType() == TranslatableFile.FileType.QUEST_LANG_FILE &&
+            file.isHasExistingJaJp() && file.getExistingJaJpContent() != null) {
+            
+            File jaJpOutputFile = new File(outputFile.getParent(), "ja_jp.snbt");
+            Files.write(jaJpOutputFile.toPath(), file.getExistingJaJpContent().getBytes("UTF-8"));
+            
+            // workファイルパスはja_jp.snbtを設定（ファイル内容確認用）
+            file.setWorkFilePath(jaJpOutputFile.getAbsolutePath());
+        } else {
+            // workファイルパスを設定
+            file.setWorkFilePath(outputFile.getAbsolutePath());
+        }
     }
     
     /**
