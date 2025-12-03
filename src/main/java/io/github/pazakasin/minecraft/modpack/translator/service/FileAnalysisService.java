@@ -1,6 +1,10 @@
 package io.github.pazakasin.minecraft.modpack.translator.service;
 
 import io.github.pazakasin.minecraft.modpack.translator.model.TranslatableFile;
+import io.github.pazakasin.minecraft.modpack.translator.model.FileType;
+import io.github.pazakasin.minecraft.modpack.translator.model.ProcessingState;
+import io.github.pazakasin.minecraft.modpack.translator.service.quest.QuestFileInfo;
+import io.github.pazakasin.minecraft.modpack.translator.service.quest.QuestFileType;
 import io.github.pazakasin.minecraft.modpack.translator.service.callback.LogCallback;
 import io.github.pazakasin.minecraft.modpack.translator.service.callback.ProgressUpdateCallback;
 import io.github.pazakasin.minecraft.modpack.translator.service.processor.CharacterCounter;
@@ -67,27 +71,21 @@ public class FileAnalysisService {
     public List<TranslatableFile> analyzeFiles(String inputPath) throws Exception {
         List<TranslatableFile> files = new ArrayList<TranslatableFile>();
         
-        // work フォルダをクリア
         clearWorkFolder();
         
         log("=== ファイル解析開始 ===");
         
-        // クエストファイルの解析（先に表示）
         List<TranslatableFile> questFiles = analyzeQuestFiles(inputPath);
         files.addAll(questFiles);
         
-        // KubeJS言語ファイルの解析
         List<TranslatableFile> kubeJsFiles = analyzeKubeJSFiles(inputPath);
         files.addAll(kubeJsFiles);
         
-        // Modファイルの解析
         List<TranslatableFile> modFiles = analyzeModFiles(inputPath);
         files.addAll(modFiles);
         
-        // 元ファイルを work/source/ にエクスポート
         exportSourceFiles(files);
         
-        // 合計文字数の計算
         int totalCharCount = 0;
         int selectedCharCount = 0;
         for (TranslatableFile file : files) {
@@ -197,7 +195,6 @@ public class FileAnalysisService {
             return files;
         }
         
-        // kubejs/assets/<id>/lang/en_us.json を検索
         List<File> langFiles = findKubeJSLangFiles(kubeJsDir);
         
         if (langFiles.isEmpty()) {
@@ -259,7 +256,6 @@ public class FileAnalysisService {
             if (file.isDirectory()) {
                 findKubeJSLangFilesRecursive(file, result);
             } else if (file.getName().equals("en_us.json")) {
-                // kubejs/assets/<id>/lang/en_us.json のパターンを確認
                 String path = file.getAbsolutePath().replace("\\", "/");
                 if (path.contains("/lang/en_us.json")) {
                     result.add(file);
@@ -279,10 +275,8 @@ public class FileAnalysisService {
             return null;
         }
         
-        // 言語ファイルIDを抽出
         String fileId = extractKubeJSId(langFile);
         
-        // ja_jp.jsonの存在を確認
         File jaJpFile = new File(langFile.getParent(), "ja_jp.json");
         boolean hasJaJp = jaJpFile.exists();
         String jaJpContent = null;
@@ -303,7 +297,6 @@ public class FileAnalysisService {
     
     /**
      * KubeJS言語ファイルからIDを抽出します。
-     * kubejs/assets/<id>/lang/en_us.json から <id> を取得。
      */
     private String extractKubeJSId(File langFile) {
         String path = langFile.getAbsolutePath().replace("\\", "/");
@@ -325,7 +318,7 @@ public class FileAnalysisService {
         List<TranslatableFile> files = new ArrayList<TranslatableFile>();
         
         File modpackDir = new File(inputPath);
-        List<QuestFileDetector.QuestFileInfo> questFileInfos = questDetector.detectQuestFiles(modpackDir);
+        List<QuestFileInfo> questFileInfos = questDetector.detectQuestFiles(modpackDir);
         
         if (questFileInfos.isEmpty()) {
             log("");
@@ -338,7 +331,7 @@ public class FileAnalysisService {
         log("");
         
         for (int i = 0; i < questFileInfos.size(); i++) {
-            QuestFileDetector.QuestFileInfo info = questFileInfos.get(i);
+            QuestFileInfo info = questFileInfos.get(i);
             int currentNum = i + 1;
             int totalNum = questFileInfos.size();
             
@@ -351,7 +344,7 @@ public class FileAnalysisService {
                     files.add(file);
                     log(String.format("[Quest %d/%d] %s - %s (%d文字)", 
                         currentNum, totalNum, info.getFile().getName(),
-                        info.getType() == QuestFileDetector.QuestFileType.LANG_FILE ? 
+                        info.getType() == QuestFileType.LANG_FILE ? 
                             "言語ファイル" : "クエストファイル",
                         file.getCharacterCount()));
                 }
@@ -367,17 +360,15 @@ public class FileAnalysisService {
     
     /**
      * 単一のクエストファイルを解析します。
-     * 翻訳実行時と同じ方法で文字数をカウントします。
      */
-    private TranslatableFile analyzeQuestFile(QuestFileDetector.QuestFileInfo info) throws Exception {
+    private TranslatableFile analyzeQuestFile(QuestFileInfo info) throws Exception {
         File file = info.getFile();
         String content = new String(Files.readAllBytes(file.toPath()), "UTF-8");
         
         int charCount = 0;
         String fileId = file.getName().replace(".snbt", "");
         
-        if (info.getType() == QuestFileDetector.QuestFileType.LANG_FILE) {
-            // Quest言語ファイル: LangFileSNBTExtractorで抽出して文字数カウント
+        if (info.getType() == QuestFileType.LANG_FILE) {
             try {
                 Tag<?> rootTag = snbtParser.parse(file);
                 java.util.List<LangFileSNBTExtractor.ExtractedText> texts = snbtExtractor.extract(rootTag);
@@ -390,7 +381,6 @@ public class FileAnalysisService {
                     return null;
                 }
                 
-                // 既存のja_jp.snbtを確認
                 File jaJpFile = info.getJaJpFile();
                 boolean hasJaJp = info.hasJaJp();
                 String jaJpContent = null;
@@ -412,7 +402,6 @@ public class FileAnalysisService {
                 return null;
             }
         } else {
-            // Questファイル本体: SNBTParserで翻訳対象テキストを抽出して文字数カウント
             try {
                 java.util.Map<String, String> texts = snbtParser.extractTranslatableTexts(file);
                 
@@ -420,7 +409,6 @@ public class FileAnalysisService {
                     charCount += value.length();
                 }
                 
-                // 翻訳対象がなくてもファイルとして認識（コピー対象）
                 return TranslatableFile.createQuestFile(
                     file.getAbsolutePath(),
                     fileId,
@@ -517,22 +505,17 @@ public class FileAnalysisService {
      * Mod言語ファイルをエクスポートします。
      */
     private void exportModLangFile(TranslatableFile file, File workDir) throws Exception {
-        // work/mods/MyJPpack/assets/modid/lang/en_us.json
         File outputDir = new File(workDir, "mods/MyJPpack/assets/" + file.getFileId() + "/lang");
         outputDir.mkdirs();
         
         File enUsFile = new File(outputDir, "en_us.json");
         Files.write(enUsFile.toPath(), file.getFileContent().getBytes("UTF-8"));
         
-        // 既存日本語ファイルがあればja_jp.jsonも出力
         if (file.isHasExistingJaJp() && file.getExistingJaJpContent() != null) {
             File jaJpFile = new File(outputDir, "ja_jp.json");
             Files.write(jaJpFile.toPath(), file.getExistingJaJpContent().getBytes("UTF-8"));
-            
-            // workファイルパスはja_jp.jsonを設定（ファイル内容確認用）
             file.setWorkFilePath(jaJpFile.getAbsolutePath());
         } else {
-            // workファイルパスを設定
             file.setWorkFilePath(enUsFile.getAbsolutePath());
         }
     }
@@ -541,22 +524,17 @@ public class FileAnalysisService {
      * KubeJS言語ファイルをエクスポートします。
      */
     private void exportKubeJSLangFile(TranslatableFile file, File workDir) throws Exception {
-        // work/kubejs/assets/<id>/lang/en_us.json
         File outputDir = new File(workDir, "kubejs/assets/" + file.getFileId() + "/lang");
         outputDir.mkdirs();
         
         File enUsFile = new File(outputDir, "en_us.json");
         Files.write(enUsFile.toPath(), file.getFileContent().getBytes("UTF-8"));
         
-        // 既存日本語ファイルがあればja_jp.jsonも出力
         if (file.isHasExistingJaJp() && file.getExistingJaJpContent() != null) {
             File jaJpFile = new File(outputDir, "ja_jp.json");
             Files.write(jaJpFile.toPath(), file.getExistingJaJpContent().getBytes("UTF-8"));
-            
-            // workファイルパスはja_jp.jsonを設定（ファイル内容確認用）
             file.setWorkFilePath(jaJpFile.getAbsolutePath());
         } else {
-            // workファイルパスを設定
             file.setWorkFilePath(enUsFile.getAbsolutePath());
         }
     }
@@ -567,26 +545,20 @@ public class FileAnalysisService {
     private void exportQuestFile(TranslatableFile file, File workDir) throws Exception {
         File sourceFile = new File(file.getSourceFilePath());
         
-        // 相対パスを抽出 (config/ftbquests/... の部分)
         String relativePath = extractQuestRelativePath(file.getSourceFilePath());
         
-        // work/config/ftbquests/quests/... に出力
         File outputFile = new File(workDir, "config/ftbquests/quests/" + relativePath);
         outputFile.getParentFile().mkdirs();
         
         Files.copy(sourceFile.toPath(), outputFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
         
-        // Quest言語ファイルで、既存のja_jp.snbtがある場合はそれもエクスポート
-        if (file.getFileType() == TranslatableFile.FileType.QUEST_LANG_FILE &&
+        if (file.getFileType() == FileType.QUEST_LANG_FILE &&
             file.isHasExistingJaJp() && file.getExistingJaJpContent() != null) {
             
             File jaJpOutputFile = new File(outputFile.getParent(), "ja_jp.snbt");
             Files.write(jaJpOutputFile.toPath(), file.getExistingJaJpContent().getBytes("UTF-8"));
-            
-            // workファイルパスはja_jp.snbtを設定（ファイル内容確認用）
             file.setWorkFilePath(jaJpOutputFile.getAbsolutePath());
         } else {
-            // workファイルパスを設定
             file.setWorkFilePath(outputFile.getAbsolutePath());
         }
     }
@@ -597,13 +569,11 @@ public class FileAnalysisService {
     private String extractQuestRelativePath(String filePath) {
         String path = filePath.replace("\\", "/");
         
-        // config/ftbquests/quests/ 以降を抽出
         int questsIndex = path.indexOf("config/ftbquests/quests/");
         if (questsIndex != -1) {
             return path.substring(questsIndex + "config/ftbquests/quests/".length());
         }
         
-        // フォールバック: chapters/ にファイル名を置く
         return "chapters/" + new File(filePath).getName();
     }
 }

@@ -13,57 +13,11 @@ import java.util.stream.Stream;
  * 言語ファイルとクエストファイル本体の両方を検出する。
  */
 public class QuestFileDetector {
-
-    /**
-     * 検出されたクエストファイルの情報を保持するクラス。
-     */
-    public static class QuestFileInfo {
-        private final File file;
-        private final QuestFileType type;
-        private final File jaJpFile;
-
-        public QuestFileInfo(File file, QuestFileType type) {
-            this(file, type, null);
-        }
-
-        public QuestFileInfo(File file, QuestFileType type, File jaJpFile) {
-            this.file = file;
-            this.type = type;
-            this.jaJpFile = jaJpFile;
-        }
-
-        public File getFile() {
-            return file;
-        }
-
-        public QuestFileType getType() {
-            return type;
-        }
-
-        public boolean hasJaJp() {
-            return jaJpFile != null && jaJpFile.exists();
-        }
-
-        public File getJaJpFile() {
-            return jaJpFile;
-        }
-
-        @Override
-        public String toString() {
-            return "QuestFileInfo{file=" + file.getPath() + ", type=" + type + ", hasJaJp=" + hasJaJp() + "}";
-        }
-    }
-
-    /**
-     * クエストファイルの種類を示す列挙型。
-     */
-    public enum QuestFileType {
-        LANG_FILE,
-        QUEST_FILE
-    }
-
     /**
      * ModPackディレクトリからFTB Questsファイルを検出する。
+     * @param modpackDir ModPackディレクトリ
+     * @return 検出されたファイル情報のリスト
+     * @throws IOException ファイル検索エラー
      */
     public List<QuestFileInfo> detectQuestFiles(File modpackDir) throws IOException {
         List<QuestFileInfo> result = new ArrayList<QuestFileInfo>();
@@ -85,6 +39,8 @@ public class QuestFileDetector {
 
     /**
      * 言語ファイル（en_us.snbt）を検出し、ja_jp.snbtの有無もチェックする。
+     * @param langDir 言語ファイルディレクトリ
+     * @param result 結果リスト
      */
     private void detectLangFiles(File langDir, List<QuestFileInfo> result) {
         File enUsFile = new File(langDir, "en_us.snbt");
@@ -94,15 +50,43 @@ public class QuestFileDetector {
         }
     }
 
+    /**
+     * クエストファイルを再帰的に検出する。
+     * @param currentDir 現在のディレクトリ
+     * @param langDir 言語ファイルディレクトリ
+     * @param result 結果リスト
+     * @throws IOException ファイル検索エラー
+     */
     private void detectQuestFilesRecursive(File currentDir, File langDir, List<QuestFileInfo> result) throws IOException {
         try (Stream<Path> paths = Files.walk(currentDir.toPath())) {
             paths.filter(Files::isRegularFile)
-                 .filter(p -> p.toString().endsWith(".snbt"))
-                 .filter(p -> !isInLangDirectory(p, langDir))
-                 .forEach(p -> result.add(new QuestFileInfo(p.toFile(), QuestFileType.QUEST_FILE)));
+                 .filter(new java.util.function.Predicate<Path>() {
+                     @Override
+                     public boolean test(Path p) {
+                         return p.toString().endsWith(".snbt");
+                     }
+                 })
+                 .filter(new java.util.function.Predicate<Path>() {
+                     @Override
+                     public boolean test(Path p) {
+                         return !isInLangDirectory(p, langDir);
+                     }
+                 })
+                 .forEach(new java.util.function.Consumer<Path>() {
+                     @Override
+                     public void accept(Path p) {
+                         result.add(new QuestFileInfo(p.toFile(), QuestFileType.QUEST_FILE));
+                     }
+                 });
         }
     }
 
+    /**
+     * パスが言語ディレクトリ内かを判定する。
+     * @param path 判定対象パス
+     * @param langDir 言語ディレクトリ
+     * @return 言語ディレクトリ内の場合true
+     */
     private boolean isInLangDirectory(Path path, File langDir) {
         if (langDir == null || !langDir.exists()) {
             return false;

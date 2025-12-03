@@ -1,6 +1,8 @@
 package io.github.pazakasin.minecraft.modpack.translator.util;
 
 import io.github.pazakasin.minecraft.modpack.translator.model.TranslatableFile;
+import io.github.pazakasin.minecraft.modpack.translator.model.FileType;
+import io.github.pazakasin.minecraft.modpack.translator.model.ProcessingState;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -40,12 +42,10 @@ public class CsvExporter {
         try (BufferedWriter writer = new BufferedWriter(
                 new OutputStreamWriter(new FileOutputStream(csvFile), StandardCharsets.UTF_8))) {
 
-            // BOMを書き込む
             writer.write('\uFEFF');
 
             writeHeader(writer);
             
-            // 画面表示と同じ順序で出力（ファイルタイプごとにグループ化）
             List<TranslatableFile> sortedFiles = sortFilesByType(files);
             
             for (TranslatableFile file : sortedFiles) {
@@ -66,15 +66,14 @@ public class CsvExporter {
     private List<TranslatableFile> sortFilesByType(List<TranslatableFile> files) {
         List<TranslatableFile> sorted = new ArrayList<TranslatableFile>();
         
-        // 画面表示と同じ順序
-        TranslatableFile.FileType[] order = {
-            TranslatableFile.FileType.QUEST_FILE,
-            TranslatableFile.FileType.QUEST_LANG_FILE,
-            TranslatableFile.FileType.KUBEJS_LANG_FILE,
-            TranslatableFile.FileType.MOD_LANG_FILE
+        FileType[] order = {
+            FileType.QUEST_FILE,
+            FileType.QUEST_LANG_FILE,
+            FileType.KUBEJS_LANG_FILE,
+            FileType.MOD_LANG_FILE
         };
         
-        for (TranslatableFile.FileType type : order) {
+        for (FileType type : order) {
             for (TranslatableFile file : files) {
                 if (file.getFileType() == type) {
                     sorted.add(file);
@@ -97,39 +96,30 @@ public class CsvExporter {
      * ファイルデータ行を出力します。
      */
     private void writeFileRow(BufferedWriter writer, TranslatableFile file) throws IOException {
-        // 選択状態
         writer.write(file.isSelected() ? "○" : "×");
         writer.write(",");
         
-        // 種別
         writer.write(escapeCSV(file.getFileType().getDisplayName()));
         writer.write(",");
         
-        // Mod/ファイル名
         writer.write(escapeCSV(file.getModName()));
         writer.write(",");
         
-        // パス
         writer.write(escapeCSV(file.getLangFolderPath()));
         writer.write(",");
         
-        // 文字数
         writer.write(String.valueOf(file.getCharacterCount()));
         writer.write(",");
         
-        // en
         writer.write(file.getFileContent() != null ? "○" : "×");
         writer.write(",");
         
-        // ja
         writer.write(file.isHasExistingJaJp() ? "○" : "×");
         writer.write(",");
         
-        // 状態
         writer.write(escapeCSV(file.getProcessingState().getDisplayName()));
         writer.write(",");
         
-        // 結果
         writer.write(escapeCSV(file.getResultMessage()));
         
         writer.newLine();
@@ -168,9 +158,9 @@ public class CsvExporter {
                 }
             }
             
-            if (file.getProcessingState() == TranslatableFile.ProcessingState.COMPLETED) {
+            if (file.getProcessingState() == ProcessingState.COMPLETED) {
                 completedFiles++;
-            } else if (file.getProcessingState() == TranslatableFile.ProcessingState.FAILED) {
+            } else if (file.getProcessingState() == ProcessingState.FAILED) {
                 failedFiles++;
             }
         }

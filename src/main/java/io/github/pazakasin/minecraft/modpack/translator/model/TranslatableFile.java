@@ -7,54 +7,6 @@ import java.io.File;
  * 解析フェーズで作成され、ファイル選択UIと翻訳実行フェーズで使用される。
  */
 public class TranslatableFile {
-    /** ファイルの種別を表す列挙型。 */
-    public enum FileType {
-        /** Mod内の言語ファイル（en_us.json） */
-        MOD_LANG_FILE("Mod言語ファイル"),
-        /** FTBクエストの言語ファイル（en_us.snbt） */
-        QUEST_LANG_FILE("Quest言語ファイル"),
-        /** FTBクエストファイル（chapter*.snbt等） */
-        QUEST_FILE("Questファイル"),
-        /** KubeJSの言語ファイル（en_us.json） */
-        KUBEJS_LANG_FILE("KubeJS言語ファイル");
-        
-        private final String displayName;
-        
-        FileType(String displayName) {
-            this.displayName = displayName;
-        }
-        
-        public String getDisplayName() {
-            return displayName;
-        }
-    }
-    
-    /** 翻訳処理の状態を表す列挙型。 */
-    public enum ProcessingState {
-        /** 待機中（翻訳前） */
-        PENDING("待機"),
-        /** 翻訳中 */
-        TRANSLATING("翻訳中"),
-        /** 翻訳完了 */
-        COMPLETED("翻訳済"),
-        /** 翻訳失敗 */
-        FAILED("失敗"),
-        /** 既存ファイル使用 */
-        EXISTING("既存"),
-        /** 未処理（選択されていない） */
-        SKIPPED("未処理");
-        
-        private final String displayName;
-        
-        ProcessingState(String displayName) {
-            this.displayName = displayName;
-        }
-        
-        public String getDisplayName() {
-            return displayName;
-        }
-    }
-    
     /** ファイルの種別。 */
     private FileType fileType;
     
@@ -98,8 +50,8 @@ public class TranslatableFile {
      * TranslatableFileのデフォルトコンストラクタ。
      */
     public TranslatableFile() {
-        this.selected = true; // デフォルトで選択状態
-        this.processingState = ProcessingState.PENDING; // 初期状態は待機
+        this.selected = true;
+        this.processingState = ProcessingState.PENDING;
         this.resultMessage = "-";
     }
     
@@ -129,7 +81,7 @@ public class TranslatableFile {
         file.hasExistingJaJp = hasExistingJaJp;
         file.fileContent = fileContent;
         file.existingJaJpContent = existingJaJpContent;
-        file.selected = !hasExistingJaJp; // 既存のja_jpがある場合は初期状態で非選択
+        file.selected = !hasExistingJaJp;
         return file;
     }
     
@@ -172,7 +124,6 @@ public class TranslatableFile {
                                                    int characterCount, String fileContent) {
         TranslatableFile file = new TranslatableFile();
         file.fileType = FileType.QUEST_FILE;
-        // ファイル名を抽出して識別名とする
         File f = new File(filePath);
         file.modName = f.getName();
         file.sourceFilePath = filePath;
@@ -200,7 +151,7 @@ public class TranslatableFile {
                                                          String fileContent, String existingJaJpContent) {
         TranslatableFile file = new TranslatableFile();
         file.fileType = FileType.KUBEJS_LANG_FILE;
-        file.modName = fileId; // ファイルID（アセット名）を識別名として使用
+        file.modName = fileId;
         file.sourceFilePath = filePath;
         file.langFolderPath = extractKubeJSRelativePath(filePath);
         file.fileId = fileId;

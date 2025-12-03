@@ -29,28 +29,6 @@ public class AnalysisWorker extends SwingWorker<List<TranslatableFile>, Void> {
     private final AnalysisErrorCallback errorCallback;
     
     /**
-     * 解析完了時のコールバックインタフェース。
-     */
-    public interface AnalysisCompletionCallback {
-        /**
-         * 解析完了時に呼ばれます。
-         * @param files 解析結果のファイルリスト
-         */
-        void onComplete(List<TranslatableFile> files);
-    }
-    
-    /**
-     * エラー発生時のコールバックインタフェース。
-     */
-    public interface AnalysisErrorCallback {
-        /**
-         * エラー発生時に呼ばれます。
-         * @param error 発生した例外
-         */
-        void onError(Exception error);
-    }
-    
-    /**
      * AnalysisWorkerのコンストラクタ。
      * @param inputPath ModPackディレクトリパス
      * @param logCallback ログコールバック

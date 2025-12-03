@@ -17,39 +17,6 @@ public class TranslationService {
     private TranslationProvider currentProvider;
     
     /**
-     * 利用可能な翻訳プロバイダーの種類。
-     */
-    public enum ProviderType {
-        /** Google Cloud Translation API */
-        GOOGLE("Google Translation API"),
-        /** DeepL Translation API */
-        DEEPL("DeepL API"),
-        /** OpenAI ChatGPT API */
-        CHATGPT("ChatGPT API"),
-        /** Anthropic Claude API */
-        CLAUDE("Claude API");
-        
-        /** プロバイダーの表示名。UI表示用。 */
-        private final String displayName;
-        
-        /**
-         * ProviderTypeのコンストラクタ。
-         * @param displayName 表示名
-         */
-        ProviderType(String displayName) {
-            this.displayName = displayName;
-        }
-        
-        /**
-         * プロバイダーの表示名を取得します。
-         * @return 表示名
-         */
-        public String getDisplayName() {
-            return displayName;
-        }
-    }
-    
-    /**
      * TranslationServiceのデフォルトコンストラクタ。
      * 初期プロバイダーはGoogleに設定。
      */
@@ -135,6 +102,4 @@ public class TranslationService {
         
         return currentProvider.translateJsonFile(jsonContent, progressCallback);
     }
-    
-
 }

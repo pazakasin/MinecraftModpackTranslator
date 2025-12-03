@@ -1,6 +1,7 @@
 package io.github.pazakasin.minecraft.modpack.translator.controller.ui;
 
 import io.github.pazakasin.minecraft.modpack.translator.model.TranslatableFile;
+import io.github.pazakasin.minecraft.modpack.translator.model.FileType;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
@@ -157,8 +158,8 @@ public class FileSelectionPanel extends JPanel {
         selectQuestButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                selectByFileType(true, TranslatableFile.FileType.QUEST_LANG_FILE, 
-                                      TranslatableFile.FileType.QUEST_FILE);
+                selectByFileType(true, FileType.QUEST_LANG_FILE, 
+                                      FileType.QUEST_FILE);
             }
         });
         
@@ -166,8 +167,8 @@ public class FileSelectionPanel extends JPanel {
         deselectQuestButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                selectByFileType(false, TranslatableFile.FileType.QUEST_LANG_FILE, 
-                                       TranslatableFile.FileType.QUEST_FILE);
+                selectByFileType(false, FileType.QUEST_LANG_FILE, 
+                                       FileType.QUEST_FILE);
             }
         });
         
@@ -176,7 +177,7 @@ public class FileSelectionPanel extends JPanel {
         selectModButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                selectByFileType(true, TranslatableFile.FileType.MOD_LANG_FILE);
+                selectByFileType(true, FileType.MOD_LANG_FILE);
             }
         });
         
@@ -184,7 +185,7 @@ public class FileSelectionPanel extends JPanel {
         deselectModButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                selectByFileType(false, TranslatableFile.FileType.MOD_LANG_FILE);
+                selectByFileType(false, FileType.MOD_LANG_FILE);
             }
         });
         
@@ -259,13 +260,13 @@ public class FileSelectionPanel extends JPanel {
      * @param selected 選択状態
      * @param fileTypes 対象ファイル種別（可変長引数）
      */
-    private void selectByFileType(boolean selected, TranslatableFile.FileType... fileTypes) {
+    private void selectByFileType(boolean selected, FileType... fileTypes) {
         for (int i = 0; i < tableModel.getRowCount(); i++) {
             TranslatableFile file = currentFiles.get(i);
             
             // 指定されたファイル種別のいずれかに一致するかチェック
             boolean match = false;
-            for (TranslatableFile.FileType type : fileTypes) {
+            for (FileType type : fileTypes) {
                 if (file.getFileType() == type) {
                     match = true;
                     break;
@@ -318,7 +319,7 @@ public class FileSelectionPanel extends JPanel {
             File targetFile = null;
             
             // Mod言語ファイルの場合はworkフォルダ内のファイルを開く
-            if (file.getFileType() == TranslatableFile.FileType.MOD_LANG_FILE) {
+            if (file.getFileType() == FileType.MOD_LANG_FILE) {
                 if (file.getWorkFilePath() != null && !file.getWorkFilePath().isEmpty()) {
                     targetFile = new File(file.getWorkFilePath());
                     if (!targetFile.exists()) {

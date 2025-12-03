@@ -41,28 +41,6 @@ public class SelectiveTranslationWorker extends SwingWorker<List<ModProcessingRe
     private final FileStateUpdateCallback fileStateCallback;
     
     /**
-     * 翻訳完了時のコールバックインタフェース。
-     */
-    public interface TranslationCompletionCallback {
-        /**
-         * 翻訳完了時に呼ばれます。
-         * @param results 翻訳結果のリスト
-         */
-        void onComplete(List<ModProcessingResult> results);
-    }
-    
-    /**
-     * エラー発生時のコールバックインタフェース。
-     */
-    public interface TranslationErrorCallback {
-        /**
-         * エラー発生時に呼ばれます。
-         * @param error 発生した例外
-         */
-        void onError(Exception error);
-    }
-    
-    /**
      * SelectiveTranslationWorkerのコンストラクタ。
      * @param inputPath ModPackディレクトリパス
      * @param selectedFiles 選択された翻訳対象ファイル

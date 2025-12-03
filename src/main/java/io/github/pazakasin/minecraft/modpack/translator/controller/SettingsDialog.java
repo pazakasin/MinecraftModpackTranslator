@@ -1,6 +1,7 @@
 package io.github.pazakasin.minecraft.modpack.translator.controller;
 
 import io.github.pazakasin.minecraft.modpack.translator.service.TranslationService;
+import io.github.pazakasin.minecraft.modpack.translator.service.ProviderType;
 import javax.swing.*;
 import java.awt.*;
 import java.io.*;
@@ -12,7 +13,7 @@ import java.util.Properties;
  */
 public class SettingsDialog extends JDialog {
     /** 翻訳プロバイダー選択用のコンボボックス */
-    private JComboBox<TranslationService.ProviderType> providerComboBox;
+    private JComboBox<ProviderType> providerComboBox;
     /** Google Translation API のAPIキー入力フィールド */
     private JTextField googleApiKeyField;
     /** DeepL API のAPIキー入力フィールド */
@@ -50,13 +51,13 @@ public class SettingsDialog extends JDialog {
         // プロバイダー選択パネル
         JPanel providerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         providerPanel.add(new JLabel("翻訳プロバイダー:"));
-        providerComboBox = new JComboBox<>(TranslationService.ProviderType.values());
+        providerComboBox = new JComboBox<>(ProviderType.values());
         providerComboBox.setRenderer(new DefaultListCellRenderer() {
             public Component getListCellRendererComponent(JList<?> list, Object value, 
                     int index, boolean isSelected, boolean cellHasFocus) {
                 super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-                if (value instanceof TranslationService.ProviderType) {
-                    setText(((TranslationService.ProviderType) value).getDisplayName());
+                if (value instanceof ProviderType) {
+                    setText(((ProviderType) value).getDisplayName());
                 }
                 return this;
             }
@@ -157,8 +158,8 @@ public class SettingsDialog extends JDialog {
     private void loadCurrentSettings() {
         String providerName = settings.getProperty("provider", "GOOGLE");
         try {
-            TranslationService.ProviderType provider = 
-                TranslationService.ProviderType.valueOf(providerName);
+            ProviderType provider = 
+                ProviderType.valueOf(providerName);
             providerComboBox.setSelectedItem(provider);
         } catch (IllegalArgumentException e) {
             providerComboBox.setSelectedIndex(0);
@@ -172,8 +173,8 @@ public class SettingsDialog extends JDialog {
     
     /** 現在の設定内容を設定ファイルに保存します。 */
     private void saveSettings() {
-        TranslationService.ProviderType selectedProvider = 
-            (TranslationService.ProviderType) providerComboBox.getSelectedItem();
+        ProviderType selectedProvider = 
+            (ProviderType) providerComboBox.getSelectedItem();
         
         settings.setProperty("provider", selectedProvider.name());
         settings.setProperty("google.apikey", googleApiKeyField.getText().trim());
@@ -206,8 +207,8 @@ public class SettingsDialog extends JDialog {
      * 選択された翻訳プロバイダーを取得します。
      * @return 選択されたプロバイダータイプ
      */
-    public TranslationService.ProviderType getSelectedProvider() {
-        return (TranslationService.ProviderType) providerComboBox.getSelectedItem();
+    public ProviderType getSelectedProvider() {
+        return (ProviderType) providerComboBox.getSelectedItem();
     }
     
     /**
@@ -215,7 +216,7 @@ public class SettingsDialog extends JDialog {
      * @param provider プロバイダータイプ
      * @return APIキー（未設定時は空文字列）
      */
-    public String getApiKey(TranslationService.ProviderType provider) {
+    public String getApiKey(ProviderType provider) {
         switch (provider) {
             case GOOGLE:
                 return settings.getProperty("google.apikey", "");
