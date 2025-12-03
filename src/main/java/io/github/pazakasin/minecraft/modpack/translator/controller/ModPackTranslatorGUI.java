@@ -62,12 +62,6 @@ public class ModPackTranslatorGUI extends JFrame {
 	/** 翻訳処理を開始するボタン。 */
 	private JButton translateButton;
 
-	/** 処理結果をCSVに出力するボタン。 */
-	private JButton exportCsvButton;
-
-	/** 翻訳前後のファイルを比較するボタン。 */
-	private JButton compareButton;
-
 	/** 処理の進捗を表示するプログレスバー。 */
 	private JProgressBar progressBar;
 
@@ -122,7 +116,7 @@ public class ModPackTranslatorGUI extends JFrame {
 		statusPanel.setStatusText("翻訳プロバイダー: " +
 				translationService.getProvider().getDisplayName());
 
-		unifiedFileTablePanel = new UnifiedFileTablePanel();
+		unifiedFileTablePanel = new UnifiedFileTablePanel(this);
 		logPanel = new LogPanel();
 
 		JPanel buttonPanel = createButtonPanel();
@@ -156,15 +150,7 @@ public class ModPackTranslatorGUI extends JFrame {
 
 	/** 操作ボタンを含むパネルを作成します。 */
 	private JPanel createButtonPanel() {
-		JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
-
-		settingsButton = new JButton("⚙ 設定");
-		settingsButton.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				openSettings();
-			}
-		});
+		JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
 
 		analyzeButton = new JButton("ファイル解析");
 		analyzeButton.setFont(new Font("Dialog", Font.BOLD, 14));
@@ -184,30 +170,18 @@ public class ModPackTranslatorGUI extends JFrame {
 				startTranslation();
 			}
 		});
-
-		exportCsvButton = new JButton("CSVエクスポート");
-		exportCsvButton.setEnabled(false);
-		exportCsvButton.addActionListener(new ActionListener() {
+		
+		settingsButton = new JButton("⚙ 設定");
+		settingsButton.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				exportCsv();
+				openSettings();
 			}
 		});
 
-		compareButton = new JButton("翻訳比較");
-		compareButton.setEnabled(false);
-		compareButton.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				compareTranslation();
-			}
-		});
-
-		buttonPanel.add(settingsButton);
 		buttonPanel.add(analyzeButton);
 		buttonPanel.add(translateButton);
-		buttonPanel.add(exportCsvButton);
-		buttonPanel.add(compareButton);
+		buttonPanel.add(settingsButton);
 
 		return buttonPanel;
 	}
@@ -291,7 +265,9 @@ public class ModPackTranslatorGUI extends JFrame {
 		analyzedFiles = files;
 		unifiedFileTablePanel.updateFileList(files);
 		translateButton.setEnabled(true);
-		exportCsvButton.setEnabled(true); // 解析後にCSVエクスポート有効化
+		
+		// UnifiedFileTablePanelのボタンを有効化
+		unifiedFileTablePanel.getExportCsvButton().setEnabled(true);
 
 		JOptionPane.showMessageDialog(this,
 				"ファイル解析が完了しました。\n検出されたファイル数: " + files.size(),
@@ -393,7 +369,9 @@ public class ModPackTranslatorGUI extends JFrame {
 		statusPanel.setProgressText(" ");
 
 		processingResults = results;
-		compareButton.setEnabled(true);
+		
+		// UnifiedFileTablePanelのボタンを有効化
+		unifiedFileTablePanel.getCompareButton().setEnabled(true);
 
 		JOptionPane.showMessageDialog(this,
 				"翻訳が完了しました。\n出力先: output/",
@@ -530,13 +508,27 @@ public class ModPackTranslatorGUI extends JFrame {
 			dialog.showResults(results);
 			dialog.setVisible(true);
 
-			logPanel.appendLog("[比較完了] " + selectedFile.getLangFolderPath());
+			logPanel.appendLog("[比較完了]");
 		} catch (Exception e) {
 			JOptionPane.showMessageDialog(this,
 					"比較中にエラーが発生しました: " + e.getMessage(),
 					"エラー", JOptionPane.ERROR_MESSAGE);
 			e.printStackTrace();
 		}
+	}
+	
+	/**
+	 * 翻訳比較処理を実行します（UnifiedFileTablePanelから呼び出される）。
+	 */
+	public void handleCompareTranslation() {
+		compareTranslation();
+	}
+	
+	/**
+	 * CSVエクスポート処理を実行します（UnifiedFileTablePanelから呼び出される）。
+	 */
+	public void handleExportCsv() {
+		exportCsv();
 	}
 
 	/**

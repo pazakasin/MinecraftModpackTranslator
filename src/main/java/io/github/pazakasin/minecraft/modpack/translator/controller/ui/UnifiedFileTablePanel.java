@@ -1,5 +1,6 @@
 package io.github.pazakasin.minecraft.modpack.translator.controller.ui;
 
+import io.github.pazakasin.minecraft.modpack.translator.controller.ModPackTranslatorGUI;
 import io.github.pazakasin.minecraft.modpack.translator.model.TranslatableFile;
 
 import javax.swing.*;
@@ -30,11 +31,20 @@ public class UnifiedFileTablePanel extends JPanel {
     /** ファイル内容確認ボタン。 */
     private JButton viewFileButton;
     
+    /** 翻訳比較ボタン。 */
+    private JButton compareButton;
+    
+    /** CSVエクスポートボタン。 */
+    private JButton exportCsvButton;
+    
     /** 選択済み文字数を表示するラベル。 */
     private JLabel selectedCharCountLabel;
     
     /** 現在表示中のファイルリスト。 */
     private List<TranslatableFile> currentFiles;
+    
+    /** 親フレーム（ボタンアクション用） */
+    private ModPackTranslatorGUI parentFrame;
     
     /** テーブル行からファイルへのマッピング（行番号 -> ファイル）。 */
     private Map<Integer, TranslatableFile> rowToFileMap;
@@ -49,6 +59,15 @@ public class UnifiedFileTablePanel extends JPanel {
      * UnifiedFileTablePanelのコンストラクタ。
      */
     public UnifiedFileTablePanel() {
+        this(null);
+    }
+    
+    /**
+     * UnifiedFileTablePanelのコンストラクタ。
+     * @param parentFrame 親フレーム
+     */
+    public UnifiedFileTablePanel(ModPackTranslatorGUI parentFrame) {
+        this.parentFrame = parentFrame;
         currentFiles = new ArrayList<TranslatableFile>();
         rowToFileMap = new HashMap<Integer, TranslatableFile>();
         groupHeaderRows = new HashMap<Integer, TranslatableFile.FileType>();
@@ -124,12 +143,25 @@ public class UnifiedFileTablePanel extends JPanel {
         // チェックボックス変更時のイベント
         tableModel.addTableModelListener(e -> updateSelectedCharCount());
         
-        // ダブルクリックでファイル内容確認
+        // ダブルクリックでファイル内容確認または翻訳比較
         fileTable.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
                 if (e.getClickCount() == 2) {
-                    viewSelectedFile();
+                    // 翻訳後かどうかを判定
+                    int selectedRow = fileTable.getSelectedRow();
+                    if (selectedRow >= 0 && !groupHeaderRows.containsKey(selectedRow)) {
+                        TranslatableFile file = rowToFileMap.get(selectedRow);
+                        if (file != null && file.getProcessingState() == TranslatableFile.ProcessingState.COMPLETED) {
+                            // 翻訳完了後は比較を実行
+                            if (compareButton.isEnabled()) {
+                                compareButton.doClick();
+                            }
+                        } else {
+                            // 翻訳前はファイル内容確認
+                            viewSelectedFile();
+                        }
+                    }
                 } else if (e.getClickCount() == 1 && e.getButton() == MouseEvent.BUTTON3) {
                     showGroupContextMenu(e);
                 }
@@ -160,10 +192,28 @@ public class UnifiedFileTablePanel extends JPanel {
         viewFileButton = new JButton("ファイル内容確認");
         viewFileButton.addActionListener(e -> viewSelectedFile());
         
+        compareButton = new JButton("翻訳比較");
+        compareButton.setEnabled(false);
+        compareButton.addActionListener(e -> {
+            if (parentFrame != null) {
+                parentFrame.handleCompareTranslation();
+            }
+        });
+        
+        exportCsvButton = new JButton("CSVエクスポート");
+        exportCsvButton.setEnabled(false);
+        exportCsvButton.addActionListener(e -> {
+            if (parentFrame != null) {
+                parentFrame.handleExportCsv();
+            }
+        });
+        
         leftPanel.add(selectAllButton);
         leftPanel.add(deselectAllButton);
         leftPanel.add(new JSeparator(SwingConstants.VERTICAL));
         leftPanel.add(viewFileButton);
+        leftPanel.add(compareButton);
+        leftPanel.add(exportCsvButton);
         
         // 右側：選択済み文字数表示
         JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 5));
@@ -525,6 +575,22 @@ public class UnifiedFileTablePanel extends JPanel {
     }
     
     /**
+     * 翻訳比較ボタンを取得します。
+     * @return 翻訳比較ボタン
+     */
+    public JButton getCompareButton() {
+        return compareButton;
+    }
+    
+    /**
+     * CSVエクスポートボタンを取得します。
+     * @return CSVエクスポートボタン
+     */
+    public JButton getExportCsvButton() {
+        return exportCsvButton;
+    }
+    
+    /**
      * グループヘッダー行用のカスタムレンダラー。
      */
     private class GroupHeaderRenderer extends JLabel implements TableCellRenderer {
@@ -554,9 +620,15 @@ public class UnifiedFileTablePanel extends JPanel {
                 }
             } else {
                 // 通常行
-                setBackground(Color.WHITE);
+                // 選択されている場合は行全体に背景色を付ける
+                if (isSelected) {
+                    setBackground(table.getSelectionBackground());
+                    setForeground(table.getSelectionForeground());
+                } else {
+                    setBackground(Color.WHITE);
+                    setForeground(Color.BLACK);
+                }
                 setFont(getFont().deriveFont(Font.PLAIN));
-                setForeground(Color.BLACK);
                 setText(value != null ? value.toString() : "");
                 setHorizontalAlignment(SwingConstants.LEFT);
             }
