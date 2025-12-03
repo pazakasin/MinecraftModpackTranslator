@@ -3,11 +3,13 @@ package io.github.pazakasin.minecraft.modpack.translator.service.processor;
 /**
  * JSON言語ファイルの翻訳対象文字数をカウントするクラス。
  * JSONの値部分（ダブルクォート内のテキスト）のみをカウント。
+ * 改行文字も文字数に含めます（翻訳実行時と一致）。
  */
 public class CharacterCounter {
     
     /**
      * JSON言語ファイルの翻訳対象文字数をカウントします。
+     * 改行文字（\nや\r）も含めてカウントします。
      * @param jsonContent カウント対象のJSONコンテンツ
      * @return 翻訳対象の文字数（エラー時は0）
      */
@@ -43,7 +45,7 @@ public class CharacterCounter {
                     }
                 } else if (c == '"' && inValue) {
                     inValue = false;
-                } else if (inValue && c != '\n' && c != '\r') {
+                } else if (inValue) {
                     count++;
                 }
             }

@@ -7,6 +7,8 @@ import io.github.pazakasin.minecraft.modpack.translator.service.processor.Charac
 import io.github.pazakasin.minecraft.modpack.translator.service.processor.JarFileAnalyzer;
 import io.github.pazakasin.minecraft.modpack.translator.service.quest.QuestFileDetector;
 import io.github.pazakasin.minecraft.modpack.translator.service.quest.LangFileSNBTExtractor;
+import io.github.pazakasin.minecraft.modpack.translator.service.quest.SNBTParser;
+import net.querz.nbt.tag.Tag;
 
 import java.io.File;
 import java.io.FilenameFilter;
@@ -38,6 +40,9 @@ public class FileAnalysisService {
     /** SNBT形式の言語ファイルから翻訳可能な文字列を抽出するエクストラクター。 */
     private final LangFileSNBTExtractor snbtExtractor;
     
+    /** SNBTファイルをパースするパーサー。 */
+    private final SNBTParser snbtParser;
+    
     /**
      * FileAnalysisServiceのコンストラクタ。
      * @param logger ログコールバック
@@ -50,6 +55,7 @@ public class FileAnalysisService {
         this.charCounter = new CharacterCounter();
         this.questDetector = new QuestFileDetector();
         this.snbtExtractor = new LangFileSNBTExtractor();
+        this.snbtParser = new SNBTParser();
     }
     
     /**
@@ -361,34 +367,59 @@ public class FileAnalysisService {
     
     /**
      * 単一のクエストファイルを解析します。
+     * 翻訳実行時と同じ方法で文字数をカウントします。
      */
     private TranslatableFile analyzeQuestFile(QuestFileDetector.QuestFileInfo info) throws Exception {
         File file = info.getFile();
         String content = new String(Files.readAllBytes(file.toPath()), "UTF-8");
         
-        // 簡易的な文字数カウント（正確な翻訳対象テキストの抽出は翻訳時に実行）
-        int charCount = charCounter.countCharacters(content);
-        
-        if (charCount == 0) {
-            return null;
-        }
-        
+        int charCount = 0;
         String fileId = file.getName().replace(".snbt", "");
         
         if (info.getType() == QuestFileDetector.QuestFileType.LANG_FILE) {
-            return TranslatableFile.createQuestLangFile(
-                file.getAbsolutePath(),
-                fileId,
-                charCount,
-                content
-            );
+            // Quest言語ファイル: LangFileSNBTExtractorで抽出して文字数カウント
+            try {
+                Tag<?> rootTag = snbtParser.parse(file);
+                java.util.List<LangFileSNBTExtractor.ExtractedText> texts = snbtExtractor.extract(rootTag);
+                
+                for (LangFileSNBTExtractor.ExtractedText text : texts) {
+                    charCount += text.getValue().length();
+                }
+                
+                if (charCount == 0) {
+                    return null;
+                }
+                
+                return TranslatableFile.createQuestLangFile(
+                    file.getAbsolutePath(),
+                    fileId,
+                    charCount,
+                    content
+                );
+            } catch (Exception e) {
+                log("Quest言語ファイル解析エラー: " + file.getName() + " - " + e.getMessage());
+                return null;
+            }
         } else {
-            return TranslatableFile.createQuestFile(
-                file.getAbsolutePath(),
-                fileId,
-                charCount,
-                content
-            );
+            // Questファイル本体: SNBTParserで翻訳対象テキストを抽出して文字数カウント
+            try {
+                java.util.Map<String, String> texts = snbtParser.extractTranslatableTexts(file);
+                
+                for (String value : texts.values()) {
+                    charCount += value.length();
+                }
+                
+                // 翻訳対象がなくてもファイルとして認識（コピー対象）
+                return TranslatableFile.createQuestFile(
+                    file.getAbsolutePath(),
+                    fileId,
+                    charCount,
+                    content
+                );
+            } catch (Exception e) {
+                log("Questファイル解析エラー: " + file.getName() + " - " + e.getMessage());
+                return null;
+            }
         }
     }
     

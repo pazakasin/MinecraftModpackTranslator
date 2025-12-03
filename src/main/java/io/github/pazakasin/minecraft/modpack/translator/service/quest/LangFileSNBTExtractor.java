@@ -20,28 +20,29 @@ public class LangFileSNBTExtractor {
         public boolean isList() { return isList; }
     }
 
+    /**
+     * SNBT形式のルートタグから翻訳対象テキストを抽出します。
+     * Quest言語ファイル内のすべてのvalue要素を翻訳対象とします。
+     * @param rootTag ルートタグ
+     * @return 抽出されたテキストのリスト
+     */
     public List<ExtractedText> extract(Tag<?> rootTag) {
         List<ExtractedText> texts = new ArrayList<>();
         if (!(rootTag instanceof CompoundTag)) return texts;
 
         CompoundTag root = (CompoundTag) rootTag;
         for (String key : root.keySet()) {
-            if (isTranslatableKey(key)) {
-                Tag<?> valueTag = root.get(key);
-                if (valueTag instanceof StringTag) {
-                    texts.add(new ExtractedText(key, ((StringTag) valueTag).getValue(), false));
-                } else if (valueTag instanceof ListTag) {
-                    String combined = extractListContent((ListTag<?>) valueTag);
+            Tag<?> valueTag = root.get(key);
+            if (valueTag instanceof StringTag) {
+                texts.add(new ExtractedText(key, ((StringTag) valueTag).getValue(), false));
+            } else if (valueTag instanceof ListTag) {
+                String combined = extractListContent((ListTag<?>) valueTag);
+                if (!combined.isEmpty()) {
                     texts.add(new ExtractedText(key, combined, true));
                 }
             }
         }
         return texts;
-    }
-
-    private boolean isTranslatableKey(String key) {
-        return (key.startsWith("quest.") && (key.endsWith(".title") || key.endsWith(".quest_desc")))
-            || (key.startsWith("task.") && key.endsWith(".title"));
     }
 
     private String extractListContent(ListTag<?> listTag) {

@@ -108,8 +108,12 @@ public class SNBTParser {
             String value = stringMatcher.group(2);
             
             if (isTranslatableKey(key) && value.length() > 0) {
-                matches.add(new TextMatch(key, unescapeSnbtString(value), 
-                    stringMatcher.start(), stringMatcher.end(), false));
+                String unescaped = unescapeSnbtString(value);
+                // 変数参照は除外
+                if (!isVariableReference(unescaped)) {
+                    matches.add(new TextMatch(key, unescaped, 
+                        stringMatcher.start(), stringMatcher.end(), false));
+                }
             }
         }
         
@@ -140,20 +144,26 @@ public class SNBTParser {
                 continue;
             }
             
-            // 文字列配列の場合のみ処理
+            // 文字列配列の場合、各要素を個別に判定
             StringBuilder combined = new StringBuilder();
             Pattern elementPattern = Pattern.compile("\"([^\"\\\\]*(\\\\.[^\"\\\\]*)*)\"");
             Matcher elementMatcher = elementPattern.matcher(arrayContent);
             
             while (elementMatcher.find()) {
-                if (combined.length() > 0) {
-                    combined.append("\n");
+                String element = unescapeSnbtString(elementMatcher.group(1));
+                
+                // 空文字列でなく、変数参照でもない要素のみ追加
+                if (!element.trim().isEmpty() && !isVariableReference(element)) {
+                    if (combined.length() > 0) {
+                        combined.append("\n");
+                    }
+                    combined.append(element);
                 }
-                combined.append(unescapeSnbtString(elementMatcher.group(1)));
             }
             
             if (combined.length() > 0) {
-                matches.add(new TextMatch(key, combined.toString(), 
+                String combinedValue = combined.toString();
+                matches.add(new TextMatch(key, combinedValue, 
                     arrayKeyMatcher.start(), arrayEnd + 1, true));
             }
         }
@@ -253,8 +263,12 @@ public class SNBTParser {
             String stringValue = stringMatcher.group(2);
             
             if (isTranslatableKey(key) && stringValue.length() > 0) {
-                matches.add(new TextMatch(key, stringValue, 
-                    stringMatcher.start(), stringMatcher.end(), false));
+                String unescaped = unescapeSnbtString(stringValue);
+                // 変数参照は除外
+                if (!isVariableReference(unescaped)) {
+                    matches.add(new TextMatch(key, stringValue, 
+                        stringMatcher.start(), stringMatcher.end(), false));
+                }
             }
         }
         
@@ -283,10 +297,20 @@ public class SNBTParser {
                 continue;
             }
             
+            // 配列内に翻訳対象要素があるか確認
             Pattern elementPattern = Pattern.compile("\"([^\"\\\\]*(\\\\.[^\"\\\\]*)*)\"");
             Matcher elementMatcher = elementPattern.matcher(arrayContent);
+            boolean hasTranslatableElement = false;
             
-            if (elementMatcher.find()) {
+            while (elementMatcher.find()) {
+                String element = unescapeSnbtString(elementMatcher.group(1));
+                if (!isVariableReference(element)) {
+                    hasTranslatableElement = true;
+                    break;
+                }
+            }
+            
+            if (hasTranslatableElement) {
                 matches.add(new TextMatch(key, "", 
                     arrayKeyMatcher.start(), arrayEnd + 1, true));
             }
@@ -316,21 +340,55 @@ public class SNBTParser {
             String translatedValue = translations.get(uniqueKey);
             
             if (match.isArray) {
-                // 配列値の置換
+                // 配列値の置換: 元の配列要素を読み取り、変数参照以外を翻訳結果で置換
                 int arrayStart = findArrayStart(content, match.start, match.end);
                 int arrayEnd = match.end - 1; // ']'の位置
                 
                 String arrayContent = content.substring(arrayStart + 1, arrayEnd);
                 String indent = extractIndent(arrayContent);
-                String[] lines = translatedValue.split("\n");
                 
+                // 元の配列要素を取得
+                List<String> originalElements = new ArrayList<String>();
+                Pattern elementPattern = Pattern.compile("\"([^\"\\\\]*(\\\\.[^\"\\\\]*)*)\"");
+                Matcher elementMatcher = elementPattern.matcher(arrayContent);
+                
+                while (elementMatcher.find()) {
+                    originalElements.add(elementMatcher.group(1));
+                }
+                
+                // 翻訳結果を改行で分割
+                String[] translatedLines = translatedValue.split("\n");
+                
+                // 元の要素と翻訳結果をマージ
+                List<String> mergedElements = new ArrayList<String>();
+                int translatedIndex = 0;
+                
+                for (String originalElement : originalElements) {
+                    String unescaped = unescapeSnbtString(originalElement);
+                    
+                    // 空文字列または変数参照はそのまま保持
+                    if (unescaped.trim().isEmpty() || isVariableReference(unescaped)) {
+                        mergedElements.add(originalElement);
+                    } else {
+                        // 翻訳対象は翻訳結果で置換
+                        if (translatedIndex < translatedLines.length) {
+                            mergedElements.add(escapeSnbtString(translatedLines[translatedIndex]));
+                            translatedIndex++;
+                        } else {
+                            // 翻訳結果が不足する場合は元の値を保持
+                            mergedElements.add(originalElement);
+                        }
+                    }
+                }
+                
+                // 新しい配列を構築
                 StringBuilder newArray = new StringBuilder();
                 newArray.append("[");
-                for (int i = 0; i < lines.length; i++) {
+                for (int i = 0; i < mergedElements.size(); i++) {
                     newArray.append("\n").append(indent);
-                    newArray.append("\"").append(escapeSnbtString(lines[i])).append("\"");
+                    newArray.append("\"").append(mergedElements.get(i)).append("\"");
                 }
-                if (lines.length > 0) {
+                if (mergedElements.size() > 0) {
                     String baseIndent = indent.length() > 0 && indent.charAt(indent.length() - 1) == '\t' 
                         ? indent.substring(0, indent.length() - 1) : indent;
                     newArray.append("\n").append(baseIndent);
@@ -396,16 +454,49 @@ public class SNBTParser {
     
     /**
      * キーが翻訳対象かどうかを判定します。
+     * Quest File本体で翻訳対象とするキー: title, description, subtitle
      * @param key キー名
      * @return 翻訳対象の場合true
      */
     private static boolean isTranslatableKey(String key) {
         return key.equals("title") || 
                key.equals("description") || 
-               key.equals("text") ||
-               key.equals("subtitle") ||
-               key.equals("name") ||
-               key.equals("quest_desc");
+               key.equals("subtitle");
+    }
+    
+    /**
+     * 値が変数参照かどうかを判定します。
+     * 以下のパターンに該当する場合は変数参照と見なして翻訳対象から除外:
+     * 1. ドット区切り参照(3セグメント以上): ftb.shop.notification.guidance
+     * 2. 波括弧で囲まれた参照: {.advanced_tech.quests30.title}
+     * @param value 判定対象の値
+     * @return 変数参照の場合true
+     */
+    private static boolean isVariableReference(String value) {
+        if (value == null || value.isEmpty()) {
+            return false;
+        }
+        
+        String trimmed = value.trim();
+        
+        // 空文字列は変数参照ではない
+        if (trimmed.isEmpty()) {
+            return false;
+        }
+        
+        // 波括弧で囲まれた参照
+        if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+            return true;
+        }
+        
+        // ドット区切り参照(3セグメント以上): 小文字始まり、英数字とアンダースコアとドットのみ
+        // 例: ftb.shop.notification.guidance (4セグメント)
+        Pattern dotReference = Pattern.compile("^[a-z][a-z0-9_]*(\\.[a-z0-9_]+){2,}$");
+        if (dotReference.matcher(trimmed).matches()) {
+            return true;
+        }
+        
+        return false;
     }
     
     /**
