@@ -107,15 +107,15 @@ public class AnalysisActionHandler {
 					}
 				},
 				new ProgressUpdateCallback() {
-					@Override
-					public void onProgressUpdate(int progress) {
-						// 使用しない
-					}
-					
-					@Override
-					public void onProgressUpdate(String progress) {
-						statusPanel.setProgressText(progress);
-					}
+				@Override
+				public void onProgressUpdate(int progress) {
+				// 使用しない
+				}
+				
+				@Override
+				public void onProgressUpdate(String progress) {
+				// 使用しない
+				}
 				},
 				new AnalysisCompletionCallback() {
 					@Override
@@ -139,7 +139,6 @@ public class AnalysisActionHandler {
 	 */
 	private void onAnalysisComplete(List<TranslatableFile> files) {
 		buttonStateCallback.setButtonsEnabled(true);
-		statusPanel.setProgressText(" ");
 		
 		analysisResultCallback.setAnalyzedFiles(files);
 		fileTablePanel.updateFileList(files);
@@ -158,7 +157,6 @@ public class AnalysisActionHandler {
 	 */
 	private void onAnalysisError(Exception e) {
 		buttonStateCallback.setButtonsEnabled(true);
-		statusPanel.setProgressText(" ");
 		
 		JOptionPane.showMessageDialog(parentFrame,
 				"解析中にエラーが発生しました: " + e.getMessage(),

@@ -138,7 +138,7 @@ public class TranslationActionHandler {
 					
 					@Override
 					public void onProgressUpdate(String progress) {
-						statusPanel.setProgressText(progress);
+						// 使用しない
 					}
 				},
 				new TranslationCompletionCallback() {
@@ -175,7 +175,6 @@ public class TranslationActionHandler {
 	private void onTranslationComplete(List<ModProcessingResult> results) {
 		buttonStateCallback.setButtonsEnabled(true);
 		translateButtonCallback.setTranslateButtonEnabled(true);
-		statusPanel.setProgressText(" ");
 		
 		translationResultCallback.setProcessingResults(results);
 		
@@ -193,7 +192,6 @@ public class TranslationActionHandler {
 	private void onTranslationError(Exception e) {
 		buttonStateCallback.setButtonsEnabled(true);
 		translateButtonCallback.setTranslateButtonEnabled(true);
-		statusPanel.setProgressText(" ");
 		
 		JOptionPane.showMessageDialog(parentFrame,
 				"エラーが発生しました: " + e.getMessage(),

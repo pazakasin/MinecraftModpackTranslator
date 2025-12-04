@@ -3,7 +3,6 @@ package io.github.pazakasin.minecraft.modpack.translator.service.modpack;
 import java.io.File;
 
 import io.github.pazakasin.minecraft.modpack.translator.model.ModProcessingResult;
-import io.github.pazakasin.minecraft.modpack.translator.service.ProgressCallback;
 import io.github.pazakasin.minecraft.modpack.translator.service.TranslationService;
 import io.github.pazakasin.minecraft.modpack.translator.service.callback.LogCallback;
 import io.github.pazakasin.minecraft.modpack.translator.service.processor.CharacterCounter;
@@ -75,18 +74,14 @@ public class ModJarProcessor {
 			result.translationSuccess = true;
 		} else {
 			try {
-				String translatedContent = translateWithProgress(
-						langInfo.enUsContent, currentModNum, totalMods);
+				String translatedContent = translationService.translateJsonFile(langInfo.enUsContent);
 				
 				fileWriter.writeLanguageFiles(langInfo.modId, langInfo.enUsContent, translatedContent);
 				result.translated = true;
 				result.translationSuccess = true;
-				
-				logProgress(" ");
 			} catch (Exception e) {
 				result.translated = true;
 				result.translationSuccess = false;
-				logProgress(" ");
 				throw e;
 			}
 		}
@@ -94,31 +89,5 @@ public class ModJarProcessor {
 		return result;
 	}
 	
-	/**
-	 * 進捗通知付きで翻訳を実行します。
-	 * @param content 翻訳対象コンテンツ
-	 * @param currentMod 現在のMod番号
-	 * @param totalMods 全Mod数
-	 * @return 翻訳済みコンテンツ
-	 * @throws Exception 翻訳エラー
-	 */
-	private String translateWithProgress(String content, final int currentMod, final int totalMods) throws Exception {
-		return translationService.translateJsonFile(content, new ProgressCallback() {
-			@Override
-			public void onProgress(int current, int total) {
-				logProgress(String.format("[%d/%d] 翻訳中: %d/%d エントリー",
-						currentMod, totalMods, current, total));
-			}
-		});
-	}
-	
-	/**
-	 * 進捗ログメッセージを出力します。
-	 * @param message ログメッセージ
-	 */
-	private void logProgress(String message) {
-		if (logger != null) {
-			logger.onLog("PROGRESS:" + message);
-		}
-	}
+
 }

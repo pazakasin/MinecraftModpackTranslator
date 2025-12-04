@@ -10,7 +10,6 @@ import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
-import javax.swing.JProgressBar;
 import javax.swing.JSplitPane;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
@@ -59,8 +58,7 @@ public class ModPackTranslatorGUI extends JFrame {
 	/** 翻訳ボタン。 */
 	private JButton translateButton;
 	
-	/** プログレスバー。 */
-	private JProgressBar progressBar;
+
 	
 	/** 翻訳サービス。 */
 	private TranslationService translationService;
@@ -131,16 +129,12 @@ public class ModPackTranslatorGUI extends JFrame {
 		
 		JPanel buttonPanel = createButtonPanel();
 		
-		progressBar = new JProgressBar();
-		progressBar.setStringPainted(true);
-		
 		JPanel topPanel = new JPanel(new BorderLayout(5, 5));
 		topPanel.add(inputPanel, BorderLayout.NORTH);
 		
 		JPanel middlePanel = new JPanel(new BorderLayout(5, 5));
 		middlePanel.add(statusPanel, BorderLayout.NORTH);
 		middlePanel.add(buttonPanel, BorderLayout.CENTER);
-		middlePanel.add(progressBar, BorderLayout.SOUTH);
 		
 		topPanel.add(middlePanel, BorderLayout.CENTER);
 		

@@ -15,7 +15,7 @@ import java.util.List;
  * 選択されたファイルの翻訳処理をバックグラウンドで実行するSwingWorkerクラス。
  * UIスレッドをブロックせずに翻訳処理を実行し、完了時にコールバックを呼び出す。
  */
-public class SelectiveTranslationWorker extends SwingWorker<List<ModProcessingResult>, Void> {
+public class SelectiveTranslationWorker extends SwingWorker<List<ModProcessingResult>, String> {
     /** ModPackディレクトリパス。 */
     private final String inputPath;
     
@@ -75,12 +75,36 @@ public class SelectiveTranslationWorker extends SwingWorker<List<ModProcessingRe
     @Override
     protected List<ModProcessingResult> doInBackground() throws Exception {
         ModPackProcessor processor = new ModPackProcessor(
-            inputPath, translationService, logCallback, progressCallback);
+            inputPath, 
+            translationService,
+            new LogCallback() {
+                @Override
+                public void onLog(String message) {
+                    publish(message);
+                }
+            },
+            progressCallback);
         
         // ファイル状態更新コールバックを設定
         processor.setFileStateCallback(fileStateCallback);
         
         return processor.processSelectedFiles(selectedFiles);
+    }
+    
+    /**
+     * バックグラウンドスレッドから公開されたメッセージを処理します。
+     * "PROGRESS:"で始まるメッセージは進捗表示用、それ以外はログ表示用。
+     * @param chunks 公開されたメッセージのリスト
+     */
+    @Override
+    protected void process(List<String> chunks) {
+        for (String message : chunks) {
+            if (message.startsWith("PROGRESS:")) {
+                progressCallback.onProgressUpdate(message.substring(9));
+            } else {
+                logCallback.onLog(message);
+            }
+        }
     }
     
     /**
