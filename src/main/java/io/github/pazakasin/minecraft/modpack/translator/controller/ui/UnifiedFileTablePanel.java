@@ -131,9 +131,10 @@ public class UnifiedFileTablePanel extends JPanel {
 				if (e.getClickCount() == 2) {
 					int selectedRow = fileTable.getSelectedRow();
 					if (selectedRow >= 0 && !fileTableModel.isGroupHeaderRow(selectedRow)) {
-						if (actionHandler.isFileCompleted(selectedRow)) {
-							if (compareButton.isEnabled()) {
-								compareButton.doClick();
+						TranslatableFile file = actionHandler.getFileAtRow(selectedRow);
+						if (file != null && actionHandler.isFileCompleted(selectedRow)) {
+							if (parentFrame != null) {
+								parentFrame.handleCompareTranslation(file);
 							}
 						} else {
 							actionHandler.viewSelectedFile();

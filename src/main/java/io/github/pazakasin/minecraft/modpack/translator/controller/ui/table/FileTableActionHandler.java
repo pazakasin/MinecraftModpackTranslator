@@ -243,4 +243,13 @@ public class FileTableActionHandler {
 		TranslatableFile file = fileTableModel.getFileAtRow(row);
 		return file != null && file.getProcessingState() == ProcessingState.COMPLETED;
 	}
+	
+	/**
+	 * 指定された行のファイルを取得します。
+	 * @param row 行番号
+	 * @return ファイル（グループヘッダーまたは無効な行の場合null）
+	 */
+	public TranslatableFile getFileAtRow(int row) {
+		return fileTableModel.getFileAtRow(row);
+	}
 }

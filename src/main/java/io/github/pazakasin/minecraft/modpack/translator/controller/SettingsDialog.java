@@ -194,7 +194,12 @@ public class SettingsDialog extends JDialog {
         settings.setProperty("deepl.apikey", deeplApiKeyField.getText().trim());
         settings.setProperty("chatgpt.apikey", chatgptApiKeyField.getText().trim());
         settings.setProperty("claude.apikey", claudeApiKeyField.getText().trim());
-        settings.setProperty("pack_format", packFormatField.getText().trim());
+        
+        String packFormatValue = packFormatField.getText().trim();
+        if (packFormatValue.isEmpty()) {
+            packFormatValue = "15";
+        }
+        settings.setProperty("pack_format", packFormatValue);
         
         try (FileOutputStream fos = new FileOutputStream(SETTINGS_FILE)) {
             settings.store(fos, "Translation Service Settings");

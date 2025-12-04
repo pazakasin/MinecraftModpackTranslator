@@ -154,12 +154,6 @@ public class SelectiveTranslationHandler {
 			List<TranslatableFile> questFiles,
 			List<ModProcessingResult> results) throws Exception {
 		QuestTranslationResult questResult = new QuestTranslationResult();
-		File modpackDir = new File(inputPath);
-		
-		BackupManager.BackupResult backupResult = questProcessor.executeBackup(modpackDir);
-		if (backupResult != null) {
-			questResult.backupPath = backupResult.backupPath;
-		}
 		
 		processQuestLangFiles(questLangFiles, questResult);
 		processQuestContentFiles(questFiles, questResult);
@@ -182,10 +176,6 @@ public class SelectiveTranslationHandler {
 			log("");
 			log("=== FTB Quests翻訳完了 ===");
 			log("合計翻訳文字数: " + questResult.getTotalCharacterCount() + "文字");
-			
-			if (questResult.backupPath != null) {
-				log("バックアップ先: " + questResult.backupPath);
-			}
 		}
 	}
 	

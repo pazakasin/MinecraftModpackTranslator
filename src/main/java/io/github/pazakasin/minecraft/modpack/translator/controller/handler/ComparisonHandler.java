@@ -97,6 +97,14 @@ public class ComparisonHandler {
 		}
 		
 		TranslatableFile selectedFile = selectedFiles.get(0);
+		compareTranslation(selectedFile);
+	}
+	
+	/**
+	 * 指定されたファイルの翻訳前後を比較します。
+	 * @param selectedFile 比較対象ファイル
+	 */
+	public void compareTranslation(TranslatableFile selectedFile) {
 		
 		String workFilePath = selectedFile.getWorkFilePath();
 		if (workFilePath == null || workFilePath.isEmpty()) {

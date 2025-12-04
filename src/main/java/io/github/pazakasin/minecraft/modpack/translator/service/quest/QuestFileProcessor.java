@@ -75,11 +75,6 @@ public class QuestFileProcessor {
 			return result;
 		}
 		
-		BackupManager.BackupResult backupResult = executeBackup(modpackDir);
-		if (backupResult != null) {
-			result.backupPath = backupResult.backupPath;
-		}
-		
 		log("=== FTB Quests翻訳処理開始 ===");
 		log("検出されたファイル数: " + files.size());
 		
@@ -224,12 +219,6 @@ public class QuestFileProcessor {
 		log("クエストファイル: " + result.questFileSuccess + "/" + result.questFileCount + "ファイル成功");
 		log("合計翻訳文字数: " + result.getTotalCharacterCount() + "文字");
 		log("出力先: " + new File("output").getAbsolutePath());
-		
-		if (result.hasTranslation() && result.backupPath != null) {
-			log("");
-			log("【重要】config\\ftbquests\\ 配下のファイルを更新しました。");
-			log("元のファイルは " + result.backupPath + " にバックアップされています。");
-		}
 	}
 	
 	/**

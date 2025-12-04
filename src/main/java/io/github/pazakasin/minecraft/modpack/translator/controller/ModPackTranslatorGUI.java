@@ -271,6 +271,14 @@ public class ModPackTranslatorGUI extends JFrame {
 	}
 	
 	/**
+	 * 指定されたファイルの翻訳比較を実行します（UnifiedFileTablePanelから呼び出される）。
+	 * @param file 比較対象ファイル
+	 */
+	public void handleCompareTranslation(TranslatableFile file) {
+		comparisonHandler.compareTranslation(file);
+	}
+	
+	/**
 	 * CSVエクスポートを実行します（UnifiedFileTablePanelから呼び出される）。
 	 */
 	public void handleExportCsv() {

@@ -118,13 +118,14 @@ public class FileAnalysisService {
     }
     
     /**
-     * output フォルダをクリアします。
+     * output フォルダ内の全ファイルをクリアします。
+     * outputフォルダ自体は削除しません。
      */
     private void clearOutputFolder() {
         File outputDir = new File("output");
-        if (outputDir.exists()) {
-            log("output フォルダをクリア中...");
-            deleteDirectory(outputDir);
+        if (outputDir.exists() && outputDir.isDirectory()) {
+            log("output フォルダ内をクリア中...");
+            deleteDirectoryContents(outputDir);
         }
     }
     
@@ -144,6 +145,24 @@ public class FileAnalysisService {
             }
         }
         directory.delete();
+    }
+    
+    /**
+     * ディレクトリの内容のみを再帰的に削除します。
+     * ディレクトリ自体は削除しません。
+     * @param directory 対象ディレクトリ
+     */
+    private void deleteDirectoryContents(File directory) {
+        File[] files = directory.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                if (file.isDirectory()) {
+                    deleteDirectory(file);
+                } else {
+                    file.delete();
+                }
+            }
+        }
     }
     
     /**
