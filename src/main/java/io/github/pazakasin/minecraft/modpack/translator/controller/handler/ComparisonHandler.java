@@ -55,7 +55,7 @@ public class ComparisonHandler {
 		if (analyzedFiles == null || analyzedFiles.isEmpty()) {
 			JOptionPane.showMessageDialog(parentFrame,
 					"エクスポートするデータがありません。\nファイル解析を実行してください。",
-					"エラー", JOptionPane.ERROR_MESSAGE);
+					"警告", JOptionPane.WARNING_MESSAGE);
 			return;
 		}
 		
@@ -85,14 +85,14 @@ public class ComparisonHandler {
 		if (selectedFiles.isEmpty()) {
 			JOptionPane.showMessageDialog(parentFrame,
 					"比較対象のファイルを選択してください。",
-					"エラー", JOptionPane.ERROR_MESSAGE);
+					"警告", JOptionPane.WARNING_MESSAGE);
 			return;
 		}
 		
 		if (selectedFiles.size() != 1) {
 			JOptionPane.showMessageDialog(parentFrame,
 					"比較は1つのファイルのみ選択してください。",
-					"エラー", JOptionPane.ERROR_MESSAGE);
+					"警告", JOptionPane.WARNING_MESSAGE);
 			return;
 		}
 		

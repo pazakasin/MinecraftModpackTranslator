@@ -102,7 +102,7 @@ public class TranslationActionHandler {
 		if (selectedFiles.isEmpty()) {
 			JOptionPane.showMessageDialog(parentFrame,
 					"翻訳対象のファイルを選択してください。",
-					"エラー", JOptionPane.ERROR_MESSAGE);
+					"警告", JOptionPane.WARNING_MESSAGE);
 			return;
 		}
 		

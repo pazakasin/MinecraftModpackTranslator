@@ -52,6 +52,9 @@ public class ModPackTranslatorGUI extends JFrame {
 	/** 設定ボタン。 */
 	private JButton settingsButton;
 	
+	/** ヘルプボタン。 */
+	private JButton helpButton;
+	
 	/** 解析ボタン。 */
 	private JButton analyzeButton;
 	
@@ -169,9 +172,14 @@ public class ModPackTranslatorGUI extends JFrame {
 		settingsButton = new JButton("⚙ 設定");
 		settingsButton.addActionListener(e -> openSettings());
 		
+		helpButton = new JButton("❓ ヘルプ");
+		helpButton.setToolTipText("使い方を表示");
+		helpButton.addActionListener(e -> showHelpDialog());
+		
 		buttonPanel.add(analyzeButton);
 		buttonPanel.add(translateButton);
 		buttonPanel.add(settingsButton);
+		buttonPanel.add(helpButton);
 		
 		return buttonPanel;
 	}
@@ -237,6 +245,14 @@ public class ModPackTranslatorGUI extends JFrame {
 						return analyzedFiles;
 					}
 				});
+	}
+	
+	/**
+	 * ヘルプダイアログを表示します。
+	 */
+	private void showHelpDialog() {
+		HelpDialog dialog = new HelpDialog(this);
+		dialog.setVisible(true);
 	}
 	
 	/**

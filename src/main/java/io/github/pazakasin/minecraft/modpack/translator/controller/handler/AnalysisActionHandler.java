@@ -83,16 +83,16 @@ public class AnalysisActionHandler {
 		
 		if (inputPath.isEmpty()) {
 			JOptionPane.showMessageDialog(parentFrame,
-					"ModPackディレクトリを選択してください。",
-					"エラー", JOptionPane.ERROR_MESSAGE);
+					"ModPackディレクトリを入力してください。",
+					"警告", JOptionPane.WARNING_MESSAGE);
 			return;
 		}
 		
 		File modsDir = new File(inputPath, "mods");
 		if (!modsDir.exists() || !modsDir.isDirectory()) {
 			JOptionPane.showMessageDialog(parentFrame,
-					"指定されたディレクトリに'mods'フォルダが見つかりません。",
-					"エラー", JOptionPane.ERROR_MESSAGE);
+					"指定されたディレクトリに'mods'フォルダが見つかりません。\n正しいModPackのベースディレクトリを入力してください。",
+					"警告", JOptionPane.WARNING_MESSAGE);
 			return;
 		}
 		
