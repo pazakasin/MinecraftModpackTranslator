@@ -143,19 +143,15 @@ public class KubeJSProcessor {
 	
 	/**
 	 * KubeJS言語ファイルを書き込みます。
+	 * ja_jp.jsonのみを出力し、en_us.jsonは出力しない。
 	 * @param fileId ファイルID
-	 * @param enUsContent 英語コンテンツ
+	 * @param enUsContent 英語コンテンツ（使用しない）
 	 * @param jaJpContent 日本語コンテンツ
 	 * @throws IOException ファイルI/Oエラー
 	 */
 	private void writeKubeJSLangFiles(String fileId, String enUsContent, String jaJpContent) throws IOException {
 		File langDir = new File("output/kubejs/assets/" + fileId + "/lang");
 		langDir.mkdirs();
-		
-		if (enUsContent != null) {
-			java.nio.file.Files.write(new File(langDir, "en_us.json").toPath(),
-					enUsContent.getBytes("UTF-8"));
-		}
 		
 		if (jaJpContent != null) {
 			java.nio.file.Files.write(new File(langDir, "ja_jp.json").toPath(),

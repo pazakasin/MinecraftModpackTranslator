@@ -22,6 +22,8 @@ public class SettingsDialog extends JDialog {
     private JTextField chatgptApiKeyField;
     /** Claude API のAPIキー入力フィールド */
     private JTextField claudeApiKeyField;
+    /** pack_format入力フィールド */
+    private JTextField packFormatField;
     /** 設定情報を保持するPropertiesオブジェクト */
     private Properties settings;
     /** 設定ファイルのパス */
@@ -35,7 +37,7 @@ public class SettingsDialog extends JDialog {
      */
     public SettingsDialog(Frame parent) {
         super(parent, "翻訳設定", true);
-        setSize(600, 400);
+        setSize(600, 500);
         setLocationRelativeTo(parent);
         
         settings = loadSettings();
@@ -64,9 +66,9 @@ public class SettingsDialog extends JDialog {
         });
         providerPanel.add(providerComboBox);
         
-        // APIキー入力パネル
+        // 翻訳・リソースパック設定パネル
         JPanel apiKeyPanel = new JPanel(new GridBagLayout());
-        apiKeyPanel.setBorder(BorderFactory.createTitledBorder("APIキー設定"));
+        apiKeyPanel.setBorder(BorderFactory.createTitledBorder("翻訳・リソースパック設定"));
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(5, 5, 5, 5);
@@ -95,9 +97,15 @@ public class SettingsDialog extends JDialog {
         claudeApiKeyField = new JTextField(30);
         apiKeyPanel.add(claudeApiKeyField, gbc);
         
+        gbc.gridx = 0; gbc.gridy = 4; gbc.weightx = 0;
+        apiKeyPanel.add(new JLabel("pack_format:"), gbc);
+        gbc.gridx = 1; gbc.weightx = 1.0;
+        packFormatField = new JTextField(5);
+        apiKeyPanel.add(packFormatField, gbc);
+        
         // 説明パネル
         JPanel infoPanel = new JPanel(new BorderLayout());
-        infoPanel.setBorder(BorderFactory.createTitledBorder("API取得方法"));
+        infoPanel.setBorder(BorderFactory.createTitledBorder("設定方法"));
         JTextArea infoArea = new JTextArea(
             "【Google Translation API】\n" +
             "Google Cloud Console → Cloud Translation API を有効化 → APIキーを作成\n\n" +
@@ -106,7 +114,11 @@ public class SettingsDialog extends JDialog {
             "【ChatGPT API】\n" +
             "https://platform.openai.com/ → API keys → Create new secret key\n\n" +
             "【Claude API】\n" +
-            "https://console.anthropic.com/ → Get API keys → Create Key"
+            "https://console.anthropic.com/ → Get API keys → Create Key\n\n" +
+            "【pack_format】\n" +
+            "リソースパックのpack_format値を指定します。\n" +
+            "主なMinecraftバージョンとの対応: 1.20.2-1.20.4=15, 1.20.5-1.20.6=18, 1.21-1.21.1=34\n" +
+            "※値が異なる場合、リソースパック適用時に警告が出ますが、強制適用可能です。"
         );
         infoArea.setEditable(false);
         infoArea.setLineWrap(true);
@@ -169,6 +181,7 @@ public class SettingsDialog extends JDialog {
         deeplApiKeyField.setText(settings.getProperty("deepl.apikey", ""));
         chatgptApiKeyField.setText(settings.getProperty("chatgpt.apikey", ""));
         claudeApiKeyField.setText(settings.getProperty("claude.apikey", ""));
+        packFormatField.setText(settings.getProperty("pack_format", "15"));
     }
     
     /** 現在の設定内容を設定ファイルに保存します。 */
@@ -181,6 +194,7 @@ public class SettingsDialog extends JDialog {
         settings.setProperty("deepl.apikey", deeplApiKeyField.getText().trim());
         settings.setProperty("chatgpt.apikey", chatgptApiKeyField.getText().trim());
         settings.setProperty("claude.apikey", claudeApiKeyField.getText().trim());
+        settings.setProperty("pack_format", packFormatField.getText().trim());
         
         try (FileOutputStream fos = new FileOutputStream(SETTINGS_FILE)) {
             settings.store(fos, "Translation Service Settings");

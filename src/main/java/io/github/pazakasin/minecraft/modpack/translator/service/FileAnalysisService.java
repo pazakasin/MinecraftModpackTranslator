@@ -12,6 +12,7 @@ import io.github.pazakasin.minecraft.modpack.translator.service.processor.JarFil
 import io.github.pazakasin.minecraft.modpack.translator.service.quest.QuestFileDetector;
 import io.github.pazakasin.minecraft.modpack.translator.service.quest.LangFileSNBTExtractor;
 import io.github.pazakasin.minecraft.modpack.translator.service.quest.SNBTParser;
+import io.github.pazakasin.minecraft.modpack.translator.service.backup.BackupManager;
 import net.querz.nbt.tag.Tag;
 
 import java.io.File;
@@ -72,6 +73,7 @@ public class FileAnalysisService {
         List<TranslatableFile> files = new ArrayList<TranslatableFile>();
         
         clearWorkFolder();
+        clearOutputFolder();
         
         log("=== ファイル解析開始 ===");
         
@@ -101,6 +103,8 @@ public class FileAnalysisService {
         log("合計翻訳対象文字数: " + totalCharCount);
         log("選択済み文字数: " + selectedCharCount);
         log("元ファイル出力先: work/");
+        
+        backupWorkFolder(inputPath);
         
         return files;
     }
@@ -448,6 +452,17 @@ public class FileAnalysisService {
     }
     
     /**
+     * output フォルダをクリアします。
+     */
+    private void clearOutputFolder() {
+        File outputDir = new File("output");
+        if (outputDir.exists()) {
+            log("output フォルダをクリア中...");
+            deleteDirectory(outputDir);
+        }
+    }
+    
+    /**
      * ディレクトリを再帰的に削除します。
      */
     private void deleteDirectory(File directory) {
@@ -505,7 +520,7 @@ public class FileAnalysisService {
      * Mod言語ファイルをエクスポートします。
      */
     private void exportModLangFile(TranslatableFile file, File workDir) throws Exception {
-        File outputDir = new File(workDir, "mods/MyJPpack/assets/" + file.getFileId() + "/lang");
+        File outputDir = new File(workDir, "resourcepacks/MyJPpack/assets/" + file.getFileId() + "/lang");
         outputDir.mkdirs();
         
         File enUsFile = new File(outputDir, "en_us.json");
@@ -560,6 +575,32 @@ public class FileAnalysisService {
             file.setWorkFilePath(jaJpOutputFile.getAbsolutePath());
         } else {
             file.setWorkFilePath(outputFile.getAbsolutePath());
+        }
+    }
+    
+    /**
+     * work フォルダをバックアップします。
+     * @param inputPath ModPackディレクトリパス
+     */
+    private void backupWorkFolder(String inputPath) {
+        try {
+            File inputDir = new File(inputPath);
+            String modpackName = inputDir.getName();
+            
+            BackupManager backupManager = new BackupManager();
+            BackupManager.ZipResult zipResult = backupManager.zipWorkFolder(modpackName);
+            
+            if (zipResult != null) {
+                log("");
+                log("=== workフォルチバックアップ ===");
+                log("圧縮ファイル: " + zipResult.zipPath);
+                log("圧縮ファイル数: " + zipResult.fileCount);
+            } else {
+                log("");
+                log("同名のバックアップファイルが存在するため、スキップしました。");
+            }
+        } catch (Exception e) {
+            log("workフォルダのバックアップに失敗しました: " + e.getMessage());
         }
     }
     

@@ -22,9 +22,10 @@ public class LanguageFileWriter {
     
     /**
      * 言語ファイルを出力ディレクトリに書き込みます。
+     * ja_jp.jsonのみを出力し、en_us.jsonは出力しない。
      * KubeJSの場合は専用パス、その他はリソースパック形式で出力。
      * @param modId Mod ID
-     * @param enUsContent 英語ファイル内容
+     * @param enUsContent 英語ファイル内容（使用しない）
      * @param jaJpContent 日本語ファイル内容
      * @throws IOException ファイル書き込み失敗
      */
@@ -37,11 +38,6 @@ public class LanguageFileWriter {
             langDir = new File(outputBase, "resourcepacks/MyJPpack/assets/" + modId + "/lang");
         }
         langDir.mkdirs();
-        
-        if (enUsContent != null) {
-            Files.write(new File(langDir, "en_us.json").toPath(), 
-                       enUsContent.getBytes("UTF-8"));
-        }
         
         if (jaJpContent != null) {
             Files.write(new File(langDir, "ja_jp.json").toPath(), 

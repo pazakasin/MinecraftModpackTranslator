@@ -27,6 +27,7 @@ replay_pid*
 #add
 /.settings/
 translator_settings.properties
-/backup/
+/input_backup/
 /work/
 /output/
+/output_backup/

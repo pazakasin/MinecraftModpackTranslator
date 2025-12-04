@@ -17,6 +17,7 @@ import io.github.pazakasin.minecraft.modpack.translator.service.modpack.ModLangu
 import io.github.pazakasin.minecraft.modpack.translator.service.modpack.SelectiveTranslationHandler;
 import io.github.pazakasin.minecraft.modpack.translator.service.processor.LanguageFileWriter;
 import io.github.pazakasin.minecraft.modpack.translator.service.quest.QuestFileProcessor;
+import io.github.pazakasin.minecraft.modpack.translator.service.backup.BackupManager;
 
 /**
  * Minecraft ModPackの翻訳処理を統括管理するクラス。
@@ -47,6 +48,9 @@ public class ModPackProcessor {
 	/** ファイル状態更新時に呼ばれるコールバック。 */
 	private FileStateUpdateCallback fileStateCallback;
 	
+	/** バックアップマネージャー。 */
+	private final BackupManager backupManager;
+	
 	/**
 	 * ModPackProcessorのコンストラクタ。
 	 * @param inputPath 処理対象ディレクトリパス
@@ -73,6 +77,7 @@ public class ModPackProcessor {
 		this.selectiveHandler = new SelectiveTranslationHandler(logger, modLangHandler,
 				kubeJsProcessor, questProcessor, inputPath);
 		
+		this.backupManager = new BackupManager();
 		this.fileStateCallback = null;
 	}
 	
@@ -145,6 +150,9 @@ public class ModPackProcessor {
 		
 		processQuests(results);
 		
+		writePackMcmeta();
+		backupOutputFolder();
+		
 		return results;
 	}
 	
@@ -181,7 +189,10 @@ public class ModPackProcessor {
 	 * @throws Exception ファイルアクセスエラー等
 	 */
 	public List<ModProcessingResult> processSelectedFiles(List<TranslatableFile> selectedFiles) throws Exception {
-		return selectiveHandler.process(selectedFiles);
+		List<ModProcessingResult> results = selectiveHandler.process(selectedFiles);
+		writePackMcmeta();
+		backupOutputFolder();
+		return results;
 	}
 	
 	/**
@@ -248,6 +259,57 @@ public class ModPackProcessor {
 		errorResult.langFolderPath = "エラー";
 		errorResult.translationSuccess = false;
 		return errorResult;
+	}
+	
+	/**
+	 * pack.mcmetaファイルを出力します。
+	 */
+	private void writePackMcmeta() {
+		try {
+			File inputDir = new File(inputPath);
+			String modpackName = inputDir.getName();
+			
+			java.util.Properties settings = io.github.pazakasin.minecraft.modpack.translator.controller.SettingsDialog.getStoredSettings();
+			String packFormat = settings.getProperty("pack_format", "15");
+			
+			File packMetaFile = new File("output/resourcepacks/MyJPpack/pack.mcmeta");
+			packMetaFile.getParentFile().mkdirs();
+			
+			String content = String.format(
+				"{\n" +
+				"  \"pack\": {\n" +
+				"    \"pack_format\": %s,\n" +
+				"    \"description\": \"%s 日本語翻訳パック\"\n" +
+				"  }\n" +
+				"}\n",
+				packFormat,
+				modpackName
+			);
+			
+			java.nio.file.Files.write(packMetaFile.toPath(), content.getBytes("UTF-8"));
+			
+			log("");
+			log("pack.mcmetaを出力しました: " + packMetaFile.getAbsolutePath());
+		} catch (Exception e) {
+			log("pack.mcmetaの出力に失敗しました: " + e.getMessage());
+		}
+	}
+	
+	/**
+	 * 出力フォルダを圧縮してoutput_backupに保存します。
+	 */
+	private void backupOutputFolder() {
+		try {
+			BackupManager.ZipResult zipResult = backupManager.zipOutputFolder();
+			if (zipResult != null) {
+				log("");
+				log("=== 出力フォルダバックアップ ===");
+				log("圧縮ファイル: " + zipResult.zipPath);
+				log("圧縮ファイル数: " + zipResult.fileCount);
+			}
+		} catch (Exception e) {
+			log("出力フォルダの圧縮に失敗しました: " + e.getMessage());
+		}
 	}
 	
 	/**
