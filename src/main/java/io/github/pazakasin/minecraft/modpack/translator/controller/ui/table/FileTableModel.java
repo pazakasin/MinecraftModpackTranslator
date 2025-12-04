@@ -79,13 +79,20 @@ public class FileTableModel {
 				null,
 				type.getDisplayName() + " (" + groupFiles.size() + "件)",
 				"[操作▼]",
-				"", "", "", "", "", ""
+				"", "", "", "", ""
 			};
 			tableModel.addRow(headerRow);
 			
 			for (TranslatableFile file : groupFiles) {
 				int currentRow = tableModel.getRowCount();
 				rowToFileMap.put(currentRow, file);
+				
+				String jaValue;
+				if (file.getFileType() == FileType.QUEST_FILE) {
+					jaValue = "-";
+				} else {
+					jaValue = file.isHasExistingJaJp() ? "○" : "×";
+				}
 				
 				Object[] row = new Object[] {
 					true,
@@ -94,9 +101,8 @@ public class FileTableModel {
 					file.getLangFolderPath(),
 					file.getCharacterCount(),
 					file.getFileContent() != null ? "○" : "×",
-					file.isHasExistingJaJp() ? "○" : "×",
-					file.getProcessingState().getDisplayName(),
-					file.getResultMessage()
+					jaValue,
+					file.getProcessingState().getDisplayName()
 				};
 				tableModel.addRow(row);
 				
@@ -137,7 +143,6 @@ public class FileTableModel {
 				
 				if (tableRow < tableModel.getRowCount()) {
 					tableModel.setValueAt(file.getProcessingState().getDisplayName(), tableRow, 7);
-					tableModel.setValueAt(file.getResultMessage(), tableRow, 8);
 				}
 				break;
 			}

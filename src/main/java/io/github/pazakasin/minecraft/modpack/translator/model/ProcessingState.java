@@ -6,19 +6,19 @@ package io.github.pazakasin.minecraft.modpack.translator.model;
  */
 public enum ProcessingState {
     /** 待機中（翻訳前） */
-    PENDING("待機"),
+    PENDING("-"),
     
     /** 翻訳中 */
     TRANSLATING("翻訳中"),
     
     /** 翻訳完了 */
-    COMPLETED("翻訳済"),
+    COMPLETED("翻訳完了"),
     
     /** 翻訳失敗 */
     FAILED("失敗"),
     
     /** 既存ファイル使用 */
-    EXISTING("既存"),
+    EXISTING("既存適用"),
     
     /** 未処理（選択されていない） */
     SKIPPED("未処理");

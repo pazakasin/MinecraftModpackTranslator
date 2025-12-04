@@ -72,7 +72,6 @@ public class ModLanguageFileHandler {
 			try {
 				if (file.isHasExistingJaJp()) {
 					file.setProcessingState(ProcessingState.EXISTING);
-					file.setResultMessage("既存");
 					updateFileState(file);
 					
 					fileWriter.writeLanguageFiles(file.getFileId(),
@@ -83,7 +82,6 @@ public class ModLanguageFileHandler {
 							currentModNum, totalMods, file.getModName()));
 				} else {
 					file.setProcessingState(ProcessingState.TRANSLATING);
-					file.setResultMessage("翻訳中");
 					updateFileState(file);
 					
 					String translatedContent = translateWithProgress(
@@ -95,7 +93,6 @@ public class ModLanguageFileHandler {
 					result.translationSuccess = true;
 					
 					file.setProcessingState(ProcessingState.COMPLETED);
-					file.setResultMessage("○");
 					updateFileState(file);
 					
 					log(String.format("[%d/%d][翻訳] %s - 翻訳完了 (%d文字)",
@@ -108,7 +105,6 @@ public class ModLanguageFileHandler {
 				result.translationSuccess = false;
 				
 				file.setProcessingState(ProcessingState.FAILED);
-				file.setResultMessage("×");
 				updateFileState(file);
 				
 				log(String.format("[%d/%d][失敗] %s: %s",

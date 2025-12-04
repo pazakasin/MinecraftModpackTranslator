@@ -82,7 +82,7 @@ public class UnifiedFileTablePanel extends JPanel {
 		setLayout(new BorderLayout(5, 5));
 		setBorder(BorderFactory.createTitledBorder("翻訳対象ファイル一覧"));
 		
-		String[] columnNames = {"選択", "種別", "識別名", "パス", "文字数", "en", "ja", "状態", "結果"};
+		String[] columnNames = {"選択", "種別", "識別名", "パス", "翻訳対象文字数", "en", "ja", "状態"};
 		DefaultTableModel tableModel = new DefaultTableModel(columnNames, 0) {
 			@Override
 			public Class<?> getColumnClass(int column) {
@@ -109,6 +109,7 @@ public class UnifiedFileTablePanel extends JPanel {
 		fileTable.setRowHeight(25);
 		
 		fileTable.setDefaultRenderer(Object.class, groupHeaderManager.createHeaderRenderer());
+		fileTable.getColumnModel().getColumn(0).setCellRenderer(groupHeaderManager.createCheckBoxRenderer());
 		
 		setupTableColumns();
 		
@@ -183,9 +184,6 @@ public class UnifiedFileTablePanel extends JPanel {
 		
 		TableColumn stateColumn = fileTable.getColumnModel().getColumn(7);
 		stateColumn.setPreferredWidth(80);
-		
-		TableColumn resultColumn = fileTable.getColumnModel().getColumn(8);
-		resultColumn.setPreferredWidth(80);
 	}
 	
 	/**
