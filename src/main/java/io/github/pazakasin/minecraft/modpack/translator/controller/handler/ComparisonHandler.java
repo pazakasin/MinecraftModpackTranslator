@@ -9,6 +9,7 @@ import javax.swing.JOptionPane;
 import io.github.pazakasin.minecraft.modpack.translator.comparison.ComparisonDialog;
 import io.github.pazakasin.minecraft.modpack.translator.comparison.ComparisonResult;
 import io.github.pazakasin.minecraft.modpack.translator.comparison.TranslationComparator;
+import io.github.pazakasin.minecraft.modpack.translator.controller.callback.AnalyzedFilesCallback;
 import io.github.pazakasin.minecraft.modpack.translator.controller.ui.LogPanel;
 import io.github.pazakasin.minecraft.modpack.translator.controller.ui.UnifiedFileTablePanel;
 import io.github.pazakasin.minecraft.modpack.translator.model.TranslatableFile;

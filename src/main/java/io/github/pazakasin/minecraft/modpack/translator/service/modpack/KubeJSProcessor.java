@@ -7,10 +7,10 @@ import java.util.List;
 import io.github.pazakasin.minecraft.modpack.translator.model.ModProcessingResult;
 import io.github.pazakasin.minecraft.modpack.translator.model.ProcessingState;
 import io.github.pazakasin.minecraft.modpack.translator.model.TranslatableFile;
-import io.github.pazakasin.minecraft.modpack.translator.service.ProgressCallback;
 import io.github.pazakasin.minecraft.modpack.translator.service.TranslationService;
 import io.github.pazakasin.minecraft.modpack.translator.service.callback.FileStateUpdateCallback;
 import io.github.pazakasin.minecraft.modpack.translator.service.callback.LogCallback;
+import io.github.pazakasin.minecraft.modpack.translator.service.callback.ProgressCallback;
 
 /**
  * KubeJS言語ファイルの処理を担当するクラス。

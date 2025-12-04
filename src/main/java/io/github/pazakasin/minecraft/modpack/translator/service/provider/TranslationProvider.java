@@ -1,6 +1,6 @@
 package io.github.pazakasin.minecraft.modpack.translator.service.provider;
 
-import io.github.pazakasin.minecraft.modpack.translator.service.ProgressCallback;
+import io.github.pazakasin.minecraft.modpack.translator.service.callback.ProgressCallback;
 
 /**
  * 翻訳プロバイダーの共通インターフェース。

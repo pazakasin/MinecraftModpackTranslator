@@ -12,10 +12,10 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-import io.github.pazakasin.minecraft.modpack.translator.service.ProgressCallback;
 import io.github.pazakasin.minecraft.modpack.translator.service.TranslationService;
-import io.github.pazakasin.minecraft.modpack.translator.service.quest.LangFileSNBTExtractor;
 import io.github.pazakasin.minecraft.modpack.translator.service.callback.LogCallback;
+import io.github.pazakasin.minecraft.modpack.translator.service.callback.ProgressCallback;
+import io.github.pazakasin.minecraft.modpack.translator.service.quest.LangFileSNBTExtractor;
 
 /**
  * クエストファイル翻訳の共通処理を提供するヘルパークラス。

@@ -1,4 +1,4 @@
-package io.github.pazakasin.minecraft.modpack.translator.service;
+package io.github.pazakasin.minecraft.modpack.translator.service.callback;
 
 /**
  * 翻訳処理の進捗を通知するコールバックインターフェース。

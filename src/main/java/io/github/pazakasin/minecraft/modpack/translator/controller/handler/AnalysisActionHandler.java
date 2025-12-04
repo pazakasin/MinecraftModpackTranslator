@@ -6,8 +6,11 @@ import java.util.List;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 
-import io.github.pazakasin.minecraft.modpack.translator.controller.ui.AnalysisCompletionCallback;
-import io.github.pazakasin.minecraft.modpack.translator.controller.ui.AnalysisErrorCallback;
+import io.github.pazakasin.minecraft.modpack.translator.controller.callback.AnalysisCompletionCallback;
+import io.github.pazakasin.minecraft.modpack.translator.controller.callback.AnalysisErrorCallback;
+import io.github.pazakasin.minecraft.modpack.translator.controller.callback.AnalysisResultCallback;
+import io.github.pazakasin.minecraft.modpack.translator.controller.callback.ButtonStateCallback;
+import io.github.pazakasin.minecraft.modpack.translator.controller.callback.TranslateButtonCallback;
 import io.github.pazakasin.minecraft.modpack.translator.controller.ui.AnalysisWorker;
 import io.github.pazakasin.minecraft.modpack.translator.controller.ui.InputPanel;
 import io.github.pazakasin.minecraft.modpack.translator.controller.ui.LogPanel;

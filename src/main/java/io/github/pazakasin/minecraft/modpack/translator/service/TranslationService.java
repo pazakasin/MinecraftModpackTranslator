@@ -1,5 +1,6 @@
 package io.github.pazakasin.minecraft.modpack.translator.service;
 
+import io.github.pazakasin.minecraft.modpack.translator.service.callback.ProgressCallback;
 import io.github.pazakasin.minecraft.modpack.translator.service.provider.*;
 
 /**

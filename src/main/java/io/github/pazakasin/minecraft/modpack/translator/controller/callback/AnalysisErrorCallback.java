@@ -1,7 +1,7 @@
-package io.github.pazakasin.minecraft.modpack.translator.controller.ui;
+package io.github.pazakasin.minecraft.modpack.translator.controller.callback;
 
 /**
- * エラー発生時のコールバック。
+ * 解析エラー発生時のコールバック。
  */
 public interface AnalysisErrorCallback {
 	/**

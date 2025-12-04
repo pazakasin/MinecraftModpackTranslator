@@ -1,4 +1,4 @@
-package io.github.pazakasin.minecraft.modpack.translator.controller.handler;
+package io.github.pazakasin.minecraft.modpack.translator.controller.callback;
 
 /**
  * 設定ダイアログ表示コールバック。

@@ -1,4 +1,4 @@
-package io.github.pazakasin.minecraft.modpack.translator.controller.ui;
+package io.github.pazakasin.minecraft.modpack.translator.controller.callback;
 
 import java.util.List;
 

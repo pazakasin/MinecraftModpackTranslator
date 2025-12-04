@@ -1,5 +1,7 @@
 package io.github.pazakasin.minecraft.modpack.translator.controller.ui;
 
+import io.github.pazakasin.minecraft.modpack.translator.controller.callback.AnalysisCompletionCallback;
+import io.github.pazakasin.minecraft.modpack.translator.controller.callback.AnalysisErrorCallback;
 import io.github.pazakasin.minecraft.modpack.translator.model.TranslatableFile;
 import io.github.pazakasin.minecraft.modpack.translator.service.FileAnalysisService;
 import io.github.pazakasin.minecraft.modpack.translator.service.callback.LogCallback;

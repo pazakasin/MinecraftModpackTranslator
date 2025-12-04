@@ -12,8 +12,12 @@ import io.github.pazakasin.minecraft.modpack.translator.controller.ui.InputPanel
 import io.github.pazakasin.minecraft.modpack.translator.controller.ui.LogPanel;
 import io.github.pazakasin.minecraft.modpack.translator.controller.ui.SelectiveTranslationWorker;
 import io.github.pazakasin.minecraft.modpack.translator.controller.ui.StatusPanel;
-import io.github.pazakasin.minecraft.modpack.translator.controller.ui.TranslationCompletionCallback;
-import io.github.pazakasin.minecraft.modpack.translator.controller.ui.TranslationErrorCallback;
+import io.github.pazakasin.minecraft.modpack.translator.controller.callback.ButtonStateCallback;
+import io.github.pazakasin.minecraft.modpack.translator.controller.callback.SettingsDialogCallback;
+import io.github.pazakasin.minecraft.modpack.translator.controller.callback.TranslateButtonCallback;
+import io.github.pazakasin.minecraft.modpack.translator.controller.callback.TranslationCompletionCallback;
+import io.github.pazakasin.minecraft.modpack.translator.controller.callback.TranslationErrorCallback;
+import io.github.pazakasin.minecraft.modpack.translator.controller.callback.TranslationResultCallback;
 import io.github.pazakasin.minecraft.modpack.translator.controller.ui.UnifiedFileTablePanel;
 import io.github.pazakasin.minecraft.modpack.translator.model.ModProcessingResult;
 import io.github.pazakasin.minecraft.modpack.translator.model.TranslatableFile;
