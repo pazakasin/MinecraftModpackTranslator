@@ -110,6 +110,9 @@ public class ModPackTranslatorGUI extends JFrame {
 			
 			String apiKey = settings.getProperty(provider.name().toLowerCase() + ".apikey", "");
 			translationService.setApiKey(apiKey);
+			
+			String customPrompt = settings.getProperty("translation.prompt", "");
+			translationService.setCustomPrompt(customPrompt);
 		} catch (IllegalArgumentException e) {
 			// デフォルト設定を使用
 		}

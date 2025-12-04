@@ -11,6 +11,9 @@ public class TranslationService {
     /** 現在設定されているAPIキー。プロバイダーの認証に使用。 */
     private String apiKey;
     
+    /** カスタムプロンプト。 */
+    private String customPrompt;
+    
     /** 現在選択されている翻訳プロバイダーのタイプ。デフォルトはGoogle。 */
     private ProviderType providerType;
     
@@ -23,6 +26,15 @@ public class TranslationService {
      */
     public TranslationService() {
         this.providerType = ProviderType.GOOGLE;
+    }
+    
+    /**
+     * カスタムプロンプトを設定します。
+     * @param customPrompt カスタムプロンプト
+     */
+    public void setCustomPrompt(String customPrompt) {
+        this.customPrompt = customPrompt;
+        updateProvider();
     }
     
     /**
@@ -68,10 +80,10 @@ public class TranslationService {
                 currentProvider = new DeepLTranslationProvider(apiKey);
                 break;
             case CHATGPT:
-                currentProvider = new ChatGPTTranslationProvider(apiKey);
+                currentProvider = new ChatGPTTranslationProvider(apiKey, customPrompt);
                 break;
             case CLAUDE:
-                currentProvider = new ClaudeTranslationProvider(apiKey);
+                currentProvider = new ClaudeTranslationProvider(apiKey, customPrompt);
                 break;
             default:
                 throw new IllegalStateException("Unknown provider: " + providerType);

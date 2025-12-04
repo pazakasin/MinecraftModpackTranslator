@@ -14,15 +14,36 @@ public class ClaudeTranslationProvider implements TranslationProvider {
     /** Anthropic APIのAPIキー。 */
     private final String apiKey;
     
+    /** カスタムプロンプト。 */
+    private final String customPrompt;
+    
     /** JSON処理用のGsonインスタンス。 */
     private final Gson gson;
+    
+    /** デフォルトプロンプト。 */
+    private static final String DEFAULT_PROMPT =
+            "以下のJSON形式のMinecraft言語ファイルを英語から日本語に翻訳してください。" +
+            "これはMinecraft ModまたはFTB Questsのテキストです。" +
+            "キー名はそのまま保持し、値のみを翻訳してください。" +
+            "アイテム名、クエストタイトル、説明文など、文脈に応じて適切に翻訳してください。" +
+            "JSONフォーマットのみを返してください。説明文や追加のテキストは一切不要です。\n\n{jsonContent}";
     
     /**
      * ClaudeTranslationProviderのコンストラクタ。
      * @param apiKey Anthropic APIキー
      */
     public ClaudeTranslationProvider(String apiKey) {
+        this(apiKey, null);
+    }
+    
+    /**
+     * ClaudeTranslationProviderのコンストラクタ（カスタムプロンプト付き）。
+     * @param apiKey Anthropic APIキー
+     * @param customPrompt カスタムプロンプト（nullの場合はデフォルト）
+     */
+    public ClaudeTranslationProvider(String apiKey, String customPrompt) {
         this.apiKey = apiKey;
+        this.customPrompt = customPrompt;
         this.gson = new GsonBuilder().setPrettyPrinting().create();
     }
     
@@ -52,10 +73,12 @@ public class ClaudeTranslationProvider implements TranslationProvider {
             conn.setRequestProperty("anthropic-version", "2023-06-01");
             conn.setDoOutput(true);
             
-            String prompt = "以下のJSON形式のMinecraft Mod言語ファイルを英語から日本語に翻訳してください。" +
-                          "キー名はそのまま保持し、値のみを翻訳してください。" +
-                          "専門用語は適切に翻訳し、ゲーム内で自然な日本語になるようにしてください。" +
-                          "JSONフォーマットのみを返してください。説明文や追加のテキストは一切不要です。\n\n" + jsonContent;
+            String prompt;
+            if (customPrompt != null && !customPrompt.trim().isEmpty()) {
+                prompt = customPrompt.replace("{jsonContent}", jsonContent);
+            } else {
+                prompt = DEFAULT_PROMPT.replace("{jsonContent}", jsonContent);
+            }
             
             JsonObject requestBody = new JsonObject();
             requestBody.addProperty("model", "claude-sonnet-4-20250514");

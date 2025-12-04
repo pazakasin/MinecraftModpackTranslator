@@ -22,6 +22,8 @@ public class SettingsDialog extends JDialog {
     private JTextField chatgptApiKeyField;
     /** Claude API のAPIキー入力フィールド */
     private JTextField claudeApiKeyField;
+    /** 翻訳プロンプト入力フィールド */
+    private JTextArea translationPromptField;
     /** pack_format入力フィールド */
     private JTextField packFormatField;
     /** 設定情報を保持するPropertiesオブジェクト */
@@ -31,13 +33,21 @@ public class SettingsDialog extends JDialog {
     /** ユーザーが設定を保存したかどうか */
     private boolean saved = false;
     
+    /** デフォルト翻訳プロンプト */
+    private static final String DEFAULT_TRANSLATION_PROMPT =
+            "以下のJSON形式のMinecraft言語ファイルを英語から日本語に翻訳してください。\n" +
+            "これはMinecraft ModまたはFTB Questsのテキストです。\n" +
+            "キー名はそのまま保持し、値のみを翻訳してください。\n" +
+            "アイテム名、クエストタイトル、説明文など、文脈に応じて適切に翻訳してください。\n" +
+            "JSONフォーマットのみを返してください。説明文は不要です。\n\n{jsonContent}";
+    
     /**
      * SettingsDialogのコンストラクタ。
      * @param parent 親フレーム
      */
     public SettingsDialog(Frame parent) {
-        super(parent, "翻訳設定", true);
-        setSize(600, 500);
+        super(parent, "設定画面", true);
+        setSize(700, 650);
         setLocationRelativeTo(parent);
         
         settings = loadSettings();
@@ -66,9 +76,9 @@ public class SettingsDialog extends JDialog {
         });
         providerPanel.add(providerComboBox);
         
-        // 翻訳・リソースパック設定パネル
+        // APIキーパネル
         JPanel apiKeyPanel = new JPanel(new GridBagLayout());
-        apiKeyPanel.setBorder(BorderFactory.createTitledBorder("翻訳・リソースパック設定"));
+        apiKeyPanel.setBorder(BorderFactory.createTitledBorder("APIキー"));
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(5, 5, 5, 5);
@@ -97,11 +107,34 @@ public class SettingsDialog extends JDialog {
         claudeApiKeyField = new JTextField(30);
         apiKeyPanel.add(claudeApiKeyField, gbc);
         
-        gbc.gridx = 0; gbc.gridy = 4; gbc.weightx = 0;
-        apiKeyPanel.add(new JLabel("pack_format:"), gbc);
-        gbc.gridx = 1; gbc.weightx = 1.0;
+        // pack_formatパネル
+        JPanel packFormatPanel = new JPanel(new GridBagLayout());
+        packFormatPanel.setBorder(BorderFactory.createTitledBorder("リソースパック設定"));
+        GridBagConstraints gbc2 = new GridBagConstraints();
+        gbc2.fill = GridBagConstraints.HORIZONTAL;
+        gbc2.insets = new Insets(5, 5, 5, 5);
+        
+        gbc2.gridx = 0; gbc2.gridy = 0; gbc2.weightx = 0;
+        packFormatPanel.add(new JLabel("pack_format:"), gbc2);
+        gbc2.gridx = 1; gbc2.weightx = 1.0;
         packFormatField = new JTextField(5);
-        apiKeyPanel.add(packFormatField, gbc);
+        packFormatPanel.add(packFormatField, gbc2);
+        
+        // 翻訳プロンプトパネル
+        JPanel promptPanel = new JPanel(new BorderLayout(5, 5));
+        promptPanel.setBorder(BorderFactory.createTitledBorder("翻訳プロンプト（ChatGPT/Claude用）"));
+        
+        translationPromptField = new JTextArea(5, 50);
+        translationPromptField.setLineWrap(true);
+        translationPromptField.setWrapStyleWord(true);
+        translationPromptField.setFont(new Font("Dialog", Font.PLAIN, 12));
+        
+        JScrollPane promptScrollPane = new JScrollPane(translationPromptField);
+        promptPanel.add(promptScrollPane, BorderLayout.CENTER);
+        
+        JLabel promptHint = new JLabel("※{jsonContent}がJSONデータに置換されます。空欄の場合はデフォルトプロンプトを使用します。");
+        promptHint.setFont(new Font("Dialog", Font.PLAIN, 10));
+        promptPanel.add(promptHint, BorderLayout.SOUTH);
         
         // 説明パネル
         JPanel infoPanel = new JPanel(new BorderLayout());
@@ -141,7 +174,17 @@ public class SettingsDialog extends JDialog {
         
         JPanel topPanel = new JPanel(new BorderLayout(5, 5));
         topPanel.add(providerPanel, BorderLayout.NORTH);
-        topPanel.add(apiKeyPanel, BorderLayout.CENTER);
+        
+        JPanel settingsPanel = new JPanel(new BorderLayout(5, 5));
+        settingsPanel.add(apiKeyPanel, BorderLayout.NORTH);
+        
+        JPanel lowerSettings = new JPanel(new BorderLayout(5, 5));
+        lowerSettings.add(packFormatPanel, BorderLayout.NORTH);
+        lowerSettings.add(promptPanel, BorderLayout.CENTER);
+        
+        settingsPanel.add(lowerSettings, BorderLayout.CENTER);
+        
+        topPanel.add(settingsPanel, BorderLayout.CENTER);
         
         mainPanel.add(topPanel, BorderLayout.NORTH);
         mainPanel.add(infoPanel, BorderLayout.CENTER);
@@ -182,6 +225,9 @@ public class SettingsDialog extends JDialog {
         chatgptApiKeyField.setText(settings.getProperty("chatgpt.apikey", ""));
         claudeApiKeyField.setText(settings.getProperty("claude.apikey", ""));
         packFormatField.setText(settings.getProperty("pack_format", "15"));
+        
+        String storedPrompt = settings.getProperty("translation.prompt", "");
+        translationPromptField.setText(storedPrompt.isEmpty() ? DEFAULT_TRANSLATION_PROMPT : storedPrompt);
     }
     
     /** 現在の設定内容を設定ファイルに保存します。 */
@@ -194,6 +240,9 @@ public class SettingsDialog extends JDialog {
         settings.setProperty("deepl.apikey", deeplApiKeyField.getText().trim());
         settings.setProperty("chatgpt.apikey", chatgptApiKeyField.getText().trim());
         settings.setProperty("claude.apikey", claudeApiKeyField.getText().trim());
+        
+        String promptText = translationPromptField.getText().trim();
+        settings.setProperty("translation.prompt", promptText.isEmpty() ? DEFAULT_TRANSLATION_PROMPT : promptText);
         
         String packFormatValue = packFormatField.getText().trim();
         if (packFormatValue.isEmpty()) {
