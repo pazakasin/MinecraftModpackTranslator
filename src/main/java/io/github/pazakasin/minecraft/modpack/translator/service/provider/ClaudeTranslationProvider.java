@@ -259,7 +259,7 @@ public class ClaudeTranslationProvider implements TranslationProvider {
 			}
 
 			JsonObject requestBody = new JsonObject();
-			requestBody.addProperty("model", "claude-sonnet-4-5");
+			requestBody.addProperty("model", "claude-haiku-4-5");
 			requestBody.addProperty("max_tokens", 8192);
 
 			JsonArray messages = new JsonArray();
