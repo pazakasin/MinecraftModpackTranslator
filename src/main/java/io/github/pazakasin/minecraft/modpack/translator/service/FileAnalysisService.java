@@ -36,6 +36,15 @@ public class FileAnalysisService {
     /** workフォルダエクスポーター。 */
     private final WorkFolderExporter workExporter;
     
+    /** work/outputフォルダをクリアするかどうか。 */
+    private boolean clearFolders = true;
+    
+    /** workフォルダをエクスポートするかどうか。 */
+    private boolean exportWork = true;
+    
+    /** workフォルダをバックアップするかどうか。 */
+    private boolean backupWork = true;
+    
     /**
      * FileAnalysisServiceのコンストラクタ。
      * @param logger ログコールバック
@@ -51,6 +60,30 @@ public class FileAnalysisService {
     }
     
     /**
+     * work/outputフォルダのクリアを有効化/無効化。
+     * @param clearFolders trueでクリアする
+     */
+    public void setClearFolders(boolean clearFolders) {
+        this.clearFolders = clearFolders;
+    }
+    
+    /**
+     * workフォルダのエクスポートを有効化/無効化。
+     * @param exportWork trueでエクスポートする
+     */
+    public void setExportWork(boolean exportWork) {
+        this.exportWork = exportWork;
+    }
+    
+    /**
+     * workフォルダのバックアップを有効化/無効化。
+     * @param backupWork trueでバックアップする
+     */
+    public void setBackupWork(boolean backupWork) {
+        this.backupWork = backupWork;
+    }
+    
+    /**
      * ModPack全体の翻訳対象ファイルを解析します。
      * @param inputPath ModPackディレクトリパス
      * @return 翻訳対象ファイルのリスト
@@ -59,8 +92,10 @@ public class FileAnalysisService {
     public List<TranslatableFile> analyzeFiles(String inputPath) throws Exception {
         List<TranslatableFile> files = new ArrayList<TranslatableFile>();
         
-        clearWorkFolder();
-        clearOutputFolder();
+        if (clearFolders) {
+            clearWorkFolder();
+            clearOutputFolder();
+        }
         
         log("=== ファイル解析開始 ===");
         
@@ -73,7 +108,9 @@ public class FileAnalysisService {
         List<TranslatableFile> modFiles = modAnalyzer.analyze(inputPath);
         files.addAll(modFiles);
         
-        workExporter.export(files);
+        if (exportWork) {
+            workExporter.export(files);
+        }
         
         int totalCharCount = 0;
         int selectedCharCount = 0;
@@ -91,7 +128,9 @@ public class FileAnalysisService {
         log("選択済み文字数: " + selectedCharCount);
         log("元ファイル出力先: work/");
         
-        backupWorkFolder(inputPath);
+        if (backupWork) {
+            backupWorkFolder(inputPath);
+        }
         
         return files;
     }

@@ -61,7 +61,7 @@ public class ComparisonDialog extends JDialog {
         filterPanel.add(new JLabel("フィルタ: "));
         
         JComboBox<String> filterCombo = new JComboBox<String>(new String[]{
-            "すべて", "変更のみ", "追加のみ", "削除のみ", "変更なし"
+            "すべて", "変更のみ", "追加のみ", "削除のみ", "変更なし", "エラー"
         });
         filterCombo.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent e) {
@@ -157,6 +157,9 @@ public class ComparisonDialog extends JDialog {
                 case UNCHANGED:
                     unchangedCount++;
                     break;
+                case ERROR_KEY_NOT_FOUND:
+                    // エラーは個別にカウントしない
+                    break;
             }
         }
         
@@ -179,6 +182,8 @@ public class ComparisonDialog extends JDialog {
                 return "変更";
             case UNCHANGED:
                 return "変更なし";
+            case ERROR_KEY_NOT_FOUND:
+                return "エラー";
             default:
                 return "";
         }
@@ -219,6 +224,8 @@ public class ComparisonDialog extends JDialog {
                 targetStatus = "追加";
             } else if ("削除のみ".equals(filterType)) {
                 targetStatus = "削除";
+            } else if ("エラー".equals(filterType)) {
+                targetStatus = "エラー";
             } else {
                 targetStatus = "変更なし";
             }

@@ -8,6 +8,9 @@ public enum ProcessingState {
     /** 待機中（翻訳前） */
     PENDING("-"),
     
+    /** 翻訳履歴あり */
+    HAS_HISTORY("履歴あり"),
+    
     /** 翻訳中 */
     TRANSLATING("翻訳中"),
     

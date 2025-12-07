@@ -15,7 +15,9 @@ public class ComparisonResult {
         /** 変更された項目 */
         MODIFIED,
         /** 変更なし */
-        UNCHANGED
+        UNCHANGED,
+        /** キーが存在しないエラー */
+        ERROR_KEY_NOT_FOUND
     }
     
     /** JSONキー */

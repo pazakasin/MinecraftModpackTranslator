@@ -52,6 +52,9 @@ public class TranslatableFile {
     /** 翻訳処理の合計キー数。 */
     private int totalProgress;
     
+    /** 翻訳履歴エントリ（loadフォルダから読み込み）。 */
+    private io.github.pazakasin.minecraft.modpack.translator.comparison.TranslationHistoryEntry historyEntry;
+    
     /**
      * TranslatableFileのデフォルトコンストラクタ。
      */
@@ -331,6 +334,26 @@ public class TranslatableFile {
         this.totalProgress = total;
         if (total > 0 && this.processingState == ProcessingState.TRANSLATING) {
             this.resultMessage = String.format("翻訳中 (%d/%d)", current, total);
+        }
+    }
+    
+    /**
+     * 翻訳履歴エントリを取得します。
+     * @return 翻訳履歴エントリ
+     */
+    public io.github.pazakasin.minecraft.modpack.translator.comparison.TranslationHistoryEntry getHistoryEntry() {
+        return historyEntry;
+    }
+    
+    /**
+     * 翻訳履歴エントリを設定し、状態を「履歴あり」に更新します。
+     * @param historyEntry 翻訳履歴エントリ
+     */
+    public void setHistoryEntry(io.github.pazakasin.minecraft.modpack.translator.comparison.TranslationHistoryEntry historyEntry) {
+        this.historyEntry = historyEntry;
+        if (historyEntry != null && this.processingState == ProcessingState.PENDING) {
+            this.processingState = ProcessingState.HAS_HISTORY;
+            this.resultMessage = ProcessingState.HAS_HISTORY.getDisplayName();
         }
     }
 }

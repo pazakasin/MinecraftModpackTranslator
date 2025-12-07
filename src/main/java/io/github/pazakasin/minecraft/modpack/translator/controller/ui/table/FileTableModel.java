@@ -188,6 +188,14 @@ public class FileTableModel {
 	}
 	
 	/**
+	 * すべてのファイルリストを取得します（getCurrentFiles()と同じ）。
+	 * @return ファイルリスト
+	 */
+	public List<TranslatableFile> getAllFiles() {
+		return currentFiles;
+	}
+	
+	/**
 	 * 行からファイルを取得します。
 	 * @param row 行番号
 	 * @return ファイル（グループヘッダー行の場合はnull）

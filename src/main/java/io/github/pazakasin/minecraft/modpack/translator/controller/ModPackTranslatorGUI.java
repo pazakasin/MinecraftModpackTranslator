@@ -212,6 +212,15 @@ public class ModPackTranslatorGUI extends JFrame {
 					}
 				});
 		
+		comparisonHandler = new ComparisonHandler(
+				this, unifiedFileTablePanel, logPanel,
+				new AnalyzedFilesCallback() {
+					@Override
+					public List<TranslatableFile> getAnalyzedFiles() {
+						return analyzedFiles;
+					}
+				});
+		
 		translationHandler = new TranslationActionHandler(
 				this, inputPanel, statusPanel, unifiedFileTablePanel, logPanel,
 				translationService,
@@ -238,16 +247,8 @@ public class ModPackTranslatorGUI extends JFrame {
 					public void openSettings() {
 						ModPackTranslatorGUI.this.openSettings();
 					}
-				});
-		
-		comparisonHandler = new ComparisonHandler(
-				this, unifiedFileTablePanel, logPanel,
-				new AnalyzedFilesCallback() {
-					@Override
-					public List<TranslatableFile> getAnalyzedFiles() {
-						return analyzedFiles;
-					}
-				});
+				},
+				comparisonHandler);
 	}
 	
 	/**

@@ -12,6 +12,16 @@ import io.github.pazakasin.minecraft.modpack.translator.controller.ui.InputPanel
 import io.github.pazakasin.minecraft.modpack.translator.controller.ui.LogPanel;
 import io.github.pazakasin.minecraft.modpack.translator.controller.ui.SelectiveTranslationWorker;
 import io.github.pazakasin.minecraft.modpack.translator.controller.ui.StatusPanel;
+import io.github.pazakasin.minecraft.modpack.translator.comparison.ComparisonDialog;
+import io.github.pazakasin.minecraft.modpack.translator.comparison.ComparisonMode;
+import io.github.pazakasin.minecraft.modpack.translator.comparison.ComparisonResult;
+import io.github.pazakasin.minecraft.modpack.translator.comparison.HiddenFeatureManager;
+import io.github.pazakasin.minecraft.modpack.translator.comparison.LoadFolderValidator;
+import io.github.pazakasin.minecraft.modpack.translator.comparison.TranslationComparator;
+import io.github.pazakasin.minecraft.modpack.translator.comparison.TranslationHistoryEntry;
+import io.github.pazakasin.minecraft.modpack.translator.comparison.TranslationHistoryException;
+import io.github.pazakasin.minecraft.modpack.translator.comparison.TranslationHistoryLoader;
+import java.io.File;
 import io.github.pazakasin.minecraft.modpack.translator.controller.callback.ButtonStateCallback;
 import io.github.pazakasin.minecraft.modpack.translator.controller.callback.SettingsDialogCallback;
 import io.github.pazakasin.minecraft.modpack.translator.controller.callback.TranslateButtonCallback;
@@ -61,6 +71,9 @@ public class TranslationActionHandler {
 	/** 設定ダイアログ表示コールバック。 */
 	private final SettingsDialogCallback settingsDialogCallback;
 	
+	/** 比較ハンドラー。 */
+	private final ComparisonHandler comparisonHandler;
+	
 	/**
 	 * TranslationActionHandlerのコンストラクタ。
 	 * @param parentFrame 親フレーム
@@ -73,6 +86,7 @@ public class TranslationActionHandler {
 	 * @param translateButtonCallback 翻訳ボタンコールバック
 	 * @param translationResultCallback 翻訳結果コールバック
 	 * @param settingsDialogCallback 設定ダイアログコールバック
+	 * @param comparisonHandler 比較ハンドラー
 	 */
 	public TranslationActionHandler(JFrame parentFrame, InputPanel inputPanel,
 			StatusPanel statusPanel, UnifiedFileTablePanel fileTablePanel,
@@ -80,7 +94,8 @@ public class TranslationActionHandler {
 			ButtonStateCallback buttonStateCallback,
 			TranslateButtonCallback translateButtonCallback,
 			TranslationResultCallback translationResultCallback,
-			SettingsDialogCallback settingsDialogCallback) {
+			SettingsDialogCallback settingsDialogCallback,
+			ComparisonHandler comparisonHandler) {
 		this.parentFrame = parentFrame;
 		this.inputPanel = inputPanel;
 		this.statusPanel = statusPanel;
@@ -91,12 +106,19 @@ public class TranslationActionHandler {
 		this.translateButtonCallback = translateButtonCallback;
 		this.translationResultCallback = translationResultCallback;
 		this.settingsDialogCallback = settingsDialogCallback;
+		this.comparisonHandler = comparisonHandler;
 	}
 	
 	/**
 	 * 翻訳処理を開始します。
 	 */
 	public void startTranslation() {
+		// 隠し機能：翻訳履歴読込モードの判定
+		if (HiddenFeatureManager.isHistoryLoadEnabled()) {
+			startHistoryComparison();
+			return;
+		}
+		
 		List<TranslatableFile> selectedFiles = fileTablePanel.getSelectedFiles();
 		
 		if (selectedFiles.isEmpty()) {
@@ -201,5 +223,81 @@ public class TranslationActionHandler {
 				"エラーが発生しました: " + e.getMessage(),
 				"エラー", JOptionPane.ERROR_MESSAGE);
 		e.printStackTrace();
+	}
+	
+	/**
+	 * 翻訳履歴読込モードを開始。
+	 */
+	private void startHistoryComparison() {
+		logPanel.appendLog("[隠し機能] 翻訳履歴読込モードを開始します...");
+		
+		// loadフォルダの検証
+		File loadFolder = HiddenFeatureManager.getLoadFolder();
+		List<String> validationErrors = LoadFolderValidator.validate(loadFolder);
+		
+		if (LoadFolderValidator.hasErrors(validationErrors)) {
+			String errorMessage = LoadFolderValidator.formatErrors(validationErrors);
+			JOptionPane.showMessageDialog(parentFrame,
+					errorMessage,
+					"loadフォルダ検証エラー", JOptionPane.ERROR_MESSAGE);
+			logPanel.appendLog("[エラー] loadフォルダの検証に失敗しました");
+			return;
+		}
+		
+		// 翻訳履歴の読込
+		TranslationHistoryLoader loader = new TranslationHistoryLoader(
+				new LogCallback() {
+					@Override
+					public void onLog(String message) {
+						logPanel.appendLog(message);
+					}
+				},
+				new ProgressUpdateCallback() {
+					@Override
+					public void onProgressUpdate(int progress) {
+						// 使用しない
+					}
+					
+					@Override
+					public void onProgressUpdate(String progress) {
+						// 使用しない
+					}
+				});
+		List<TranslationHistoryEntry> historyEntries;
+		
+		try {
+			logPanel.appendLog("[隠し機能] 翻訳履歴を読み込んでいます...");
+			historyEntries = loader.load(loadFolder);
+			logPanel.appendLog("[隠し機能] " + historyEntries.size() + " 件の翻訳ファイルを読み込みました");
+		} catch (TranslationHistoryException e) {
+			JOptionPane.showMessageDialog(parentFrame,
+					"翻訳履歴の読込に失敗しました:\n" + e.getMessage(),
+					"読込エラー", JOptionPane.ERROR_MESSAGE);
+			logPanel.appendLog("[エラー] 翻訳履歴の読込に失敗: " + e.getMessage());
+			e.printStackTrace();
+			return;
+		}
+		
+		if (historyEntries.isEmpty()) {
+			JOptionPane.showMessageDialog(parentFrame,
+					"loadフォルダ内に翻訳ファイルが見つかりませんでした",
+					"警告", JOptionPane.WARNING_MESSAGE);
+			logPanel.appendLog("[警告] 翻訳ファイルが見つかりません");
+			return;
+		}
+		
+		// 解析済みファイルを取得（ファイル解析後に実行する必要がある）
+		List<TranslatableFile> analyzedFiles = fileTablePanel.getAllFiles();
+		
+		if (analyzedFiles == null || analyzedFiles.isEmpty()) {
+			JOptionPane.showMessageDialog(parentFrame,
+					"ファイル解析が実行されていません。\n先に「ファイル解析」を実行してください。",
+					"警告", JOptionPane.WARNING_MESSAGE);
+			logPanel.appendLog("[警告] ファイル解析が必要です");
+			return;
+		}
+		
+		// ComparisonHandlerで比較実行
+		comparisonHandler.compareWithHistory(analyzedFiles, historyEntries);
 	}
 }

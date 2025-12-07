@@ -235,13 +235,15 @@ public class FileTableActionHandler {
 	}
 	
 	/**
-	 * ファイルが翻訳完了かどうかを判定します。
+	 * ファイルが翻訳完了または履歴ありかどうかを判定します。
 	 * @param row 行番号
-	 * @return 翻訳完了の場合true
+	 * @return 翻訳完了または履歴ありの場合true
 	 */
 	public boolean isFileCompleted(int row) {
 		TranslatableFile file = fileTableModel.getFileAtRow(row);
-		return file != null && file.getProcessingState() == ProcessingState.COMPLETED;
+		return file != null && 
+				(file.getProcessingState() == ProcessingState.COMPLETED ||
+				 file.getProcessingState() == ProcessingState.HAS_HISTORY);
 	}
 	
 	/**

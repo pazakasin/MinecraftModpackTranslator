@@ -147,6 +147,13 @@ public class UnifiedFileTablePanel extends JPanel {
 			}
 		});
 		
+		// 選択リスナーを追加して比較ボタンを有効化
+		fileTable.getSelectionModel().addListSelectionListener(e -> {
+			if (!e.getValueIsAdjusting()) {
+				updateCompareButtonState();
+			}
+		});
+		
 		JScrollPane scrollPane = new JScrollPane(fileTable);
 		add(scrollPane, BorderLayout.CENTER);
 		
@@ -254,6 +261,14 @@ public class UnifiedFileTablePanel extends JPanel {
 	}
 	
 	/**
+	 * すべてのファイルのリストを取得します。
+	 * @return すべてのファイルのリスト
+	 */
+	public List<TranslatableFile> getAllFiles() {
+		return fileTableModel.getAllFiles();
+	}
+	
+	/**
 	 * 特定のファイルの処理状態を更新し、表をスクロールします。
 	 * @param file 対象ファイル
 	 */
@@ -272,6 +287,30 @@ public class UnifiedFileTablePanel extends JPanel {
 	public void clearTable() {
 		fileTableModel.clearTable();
 		actionHandler.updateSelectedCharCount();
+	}
+	
+	/**
+	 * テーブルを更新します（状態欄を再描画）。
+	 */
+	public void refreshTable() {
+		// 全ファイルの状態を更新
+		List<TranslatableFile> allFiles = fileTableModel.getAllFiles();
+		for (TranslatableFile file : allFiles) {
+			fileTableModel.updateFileState(file);
+		}
+	}
+	
+	/**
+	 * 比較ボタンの有効/無効状態を更新します。
+	 */
+	private void updateCompareButtonState() {
+		int selectedRow = fileTable.getSelectedRow();
+		if (selectedRow >= 0 && !fileTableModel.isGroupHeaderRow(selectedRow)) {
+			boolean canCompare = actionHandler.isFileCompleted(selectedRow);
+			compareButton.setEnabled(canCompare);
+		} else {
+			compareButton.setEnabled(false);
+		}
 	}
 	
 	/**
