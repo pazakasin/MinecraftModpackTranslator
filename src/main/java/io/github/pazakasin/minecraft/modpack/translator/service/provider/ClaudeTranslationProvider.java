@@ -79,6 +79,15 @@ public class ClaudeTranslationProvider implements TranslationProvider {
 	/** デバッグモード（API呼び出しをスキップ）。 */
 	private boolean debugMode = false;
 
+	/** ファイル翻訳開始時刻（デバッグログ用）。 */
+	private long fileTranslationStartTime = 0;
+
+	/** ファイル翻訳の累積トークン数（デバッグログ用）。 */
+	private final AtomicInteger totalTokensUsed = new AtomicInteger(0);
+
+	/** ファイル翻訳のリクエスト回数（デバッグログ用）。 */
+	private final AtomicInteger totalRequests = new AtomicInteger(0);
+
 	/** デフォルトバッチサイズ。 */
 	private static final int DEFAULT_BATCH_SIZE = 20;
 
@@ -132,6 +141,12 @@ public class ClaudeTranslationProvider implements TranslationProvider {
 	 */
 	@Override
 	public String translateJsonFile(String jsonContent, ProgressCallback progressCallback) throws Exception {
+		fileTranslationStartTime = System.currentTimeMillis();
+		totalTokensUsed.set(0);
+		totalRequests.set(0);
+		
+		System.out.println("[デバッグ] ファイル翻訳開始");
+		
 		JsonObject sourceJson = gson.fromJson(jsonContent, JsonObject.class);
 		int totalKeys = sourceJson.size();
 
@@ -158,6 +173,11 @@ public class ClaudeTranslationProvider implements TranslationProvider {
 							acquireRateLimit();
 							BatchTranslationResult batchResult = translateBatchWithRetry(batch, batchIndex, batches.size());
 							updateActualTokenUsage(batchResult.actualOutputTokens);
+							totalTokensUsed.addAndGet(batchResult.actualOutputTokens);
+							totalRequests.incrementAndGet();
+							
+							logTokenUsage(batchIndex, batches.size(), batchResult.actualOutputTokens);
+							
 							int currentProcessed = processedKeys.addAndGet(batch.size());
 
 							if (progressCallback != null) {
@@ -194,6 +214,8 @@ public class ClaudeTranslationProvider implements TranslationProvider {
 				executor.shutdownNow();
 				Thread.currentThread().interrupt();
 			}
+			
+			logFileTranslationSummary(batches.size());
 		}
 
 		JsonObject resultJson = new JsonObject();
@@ -227,7 +249,7 @@ public class ClaudeTranslationProvider implements TranslationProvider {
 				
 				if (waitTime > 0) {
 					System.out.println(String.format(
-							"[レート制限] 待機中... (トークン: %d/%d, 待機時間: %.1f秒)",
+							"[レート制限] 待機中... (現在のトークン使用量: %d/%d, 待機時間: %.1f秒)",
 							currentTokenUsage, OUTPUT_TOKEN_LIMIT_PER_MINUTE,
 							waitTime / 1000.0));
 					Thread.sleep(waitTime);
@@ -252,6 +274,54 @@ public class ClaudeTranslationProvider implements TranslationProvider {
 		}
 		TokenUsage lastUsage = tokenUsages.get(tokenUsages.size() - 1);
 		tokenUsages.set(tokenUsages.size() - 1, new TokenUsage(lastUsage.timestamp, actualTokens));
+	}
+
+	/**
+	 * バッチごとのトークン使用量をログ出力します。
+	 * @param batchIndex バッチインデックス
+	 * @param totalBatches 総バッチ数
+	 * @param outputTokens 出力トークン数
+	 */
+	private synchronized void logTokenUsage(int batchIndex, int totalBatches, int outputTokens) {
+		int currentTotalTokens = totalTokensUsed.get();
+		int currentRequests = totalRequests.get();
+		
+		int currentWindowTokens = 0;
+		long now = System.currentTimeMillis();
+		final long oneMinuteAgo = now - 60000;
+		
+		for (TokenUsage usage : tokenUsages) {
+			if (usage.timestamp >= oneMinuteAgo) {
+				currentWindowTokens += usage.tokens;
+			}
+		}
+		
+		System.out.println(String.format(
+				"[デバッグ] バッチ %d/%d 完了 | 出力トークン: %d | " +
+				"ファイル累積: %d トークン (%d リクエスト) | " +
+				"直近1分間: %d/%d トークン",
+				batchIndex + 1, totalBatches, outputTokens,
+				currentTotalTokens, currentRequests,
+				currentWindowTokens, OUTPUT_TOKEN_LIMIT_PER_MINUTE));
+	}
+
+	/**
+	 * ファイル翻訳完了時のサマリーをログ出力します。
+	 * @param totalBatches 総バッチ数
+	 */
+	private void logFileTranslationSummary(int totalBatches) {
+		long elapsedTime = System.currentTimeMillis() - fileTranslationStartTime;
+		int finalTotalTokens = totalTokensUsed.get();
+		int finalRequests = totalRequests.get();
+		double avgTokensPerRequest = finalRequests > 0 ? (double) finalTotalTokens / finalRequests : 0;
+		
+		System.out.println(String.format(
+				"[デバッグ] ファイル翻訳完了 | " +
+				"総バッチ数: %d | 総リクエスト: %d | " +
+				"総出力トークン: %d | 平均出力トークン/リクエスト: %.1f | " +
+				"処理時間: %.1f秒",
+				totalBatches, finalRequests, finalTotalTokens, avgTokensPerRequest,
+				elapsedTime / 1000.0));
 	}
 
 	/**
