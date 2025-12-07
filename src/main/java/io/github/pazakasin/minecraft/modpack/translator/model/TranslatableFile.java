@@ -46,6 +46,12 @@ public class TranslatableFile {
     /** 翻訳処理の結果メッセージ。 */
     private String resultMessage;
     
+    /** 翻訳処理の現在の進捗（処理済みキー数）。 */
+    private int currentProgress;
+    
+    /** 翻訳処理の合計キー数。 */
+    private int totalProgress;
+    
     /**
      * TranslatableFileのデフォルトコンストラクタ。
      */
@@ -53,6 +59,8 @@ public class TranslatableFile {
         this.selected = true;
         this.processingState = ProcessingState.PENDING;
         this.resultMessage = "-";
+        this.currentProgress = 0;
+        this.totalProgress = 0;
     }
     
     /**
@@ -295,5 +303,34 @@ public class TranslatableFile {
     
     public void setResultMessage(String resultMessage) {
         this.resultMessage = resultMessage;
+    }
+    
+    public int getCurrentProgress() {
+        return currentProgress;
+    }
+    
+    public void setCurrentProgress(int currentProgress) {
+        this.currentProgress = currentProgress;
+    }
+    
+    public int getTotalProgress() {
+        return totalProgress;
+    }
+    
+    public void setTotalProgress(int totalProgress) {
+        this.totalProgress = totalProgress;
+    }
+    
+    /**
+     * 翻訳進捗を設定し、結果メッセージを更新します。
+     * @param current 現在の進捗
+     * @param total 合計
+     */
+    public void setProgress(int current, int total) {
+        this.currentProgress = current;
+        this.totalProgress = total;
+        if (total > 0 && this.processingState == ProcessingState.TRANSLATING) {
+            this.resultMessage = String.format("翻訳中 (%d/%d)", current, total);
+        }
     }
 }

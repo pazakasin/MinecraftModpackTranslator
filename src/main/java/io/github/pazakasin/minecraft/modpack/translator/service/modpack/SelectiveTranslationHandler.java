@@ -206,8 +206,15 @@ public class SelectiveTranslationHandler {
 					existingJaJpFile = new File(langDir, "ja_jp.snbt");
 				}
 				
+				final TranslatableFile currentFile = file;
 				QuestFileResult fileResult = questProcessor.processSingleLangFile(
-						sourceFile, existingJaJpFile, file.getCharacterCount());
+						sourceFile, existingJaJpFile, file.getCharacterCount(), new io.github.pazakasin.minecraft.modpack.translator.service.callback.ProgressCallback() {
+							@Override
+							public void onProgress(int current, int total) {
+								currentFile.setProgress(current, total);
+								updateFileState(currentFile);
+							}
+						});
 				
 				questResult.fileResults.add(fileResult);
 				questResult.langFileTranslated = fileResult.translated;
@@ -269,8 +276,15 @@ public class SelectiveTranslationHandler {
 			
 			try {
 				File sourceFile = new File(file.getSourceFilePath());
+				final TranslatableFile currentFile = file;
 				QuestFileResult fileResult = questProcessor.processSingleQuestFile(
-						sourceFile, file.getCharacterCount());
+						sourceFile, file.getCharacterCount(), new io.github.pazakasin.minecraft.modpack.translator.service.callback.ProgressCallback() {
+							@Override
+							public void onProgress(int current, int total) {
+								currentFile.setProgress(current, total);
+								updateFileState(currentFile);
+							}
+						});
 				
 				questResult.fileResults.add(fileResult);
 				questResult.questFileTranslated++;

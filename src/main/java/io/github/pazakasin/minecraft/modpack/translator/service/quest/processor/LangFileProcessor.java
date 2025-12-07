@@ -60,6 +60,18 @@ public class LangFileProcessor {
 	 * @return 処理結果
 	 */
 	public QuestFileResult process(File langFile, File existingJaJpFile) {
+		return process(langFile, existingJaJpFile, null);
+	}
+	
+	/**
+	 * Lang Fileを処理します。既存のja_jp.snbtがある場合はコピーします。
+	 * @param langFile 元のLang File
+	 * @param existingJaJpFile 既存のja_jp.snbtファイル（なければnull）
+	 * @param progressCallback 進捗コールバック
+	 * @return 処理結果
+	 */
+	public QuestFileResult process(File langFile, File existingJaJpFile, 
+			io.github.pazakasin.minecraft.modpack.translator.service.callback.ProgressCallback progressCallback) {
 		try {
 			log("Lang File処理開始: " + langFile.getName());
 			log("ファイルパス: " + langFile.getAbsolutePath());
@@ -94,7 +106,7 @@ public class LangFileProcessor {
 			int charCount = countCharacters(texts);
 			log("翻訳対象テキスト数: " + texts.size() + " (" + charCount + "文字)");
 			
-			Map<String, String> translations = helper.translateLangFileTexts(texts);
+			Map<String, String> translations = helper.translateLangFileTexts(texts, progressCallback);
 			
 			applyTranslationsToLangFile(langFile, outputFile, translations);
 			

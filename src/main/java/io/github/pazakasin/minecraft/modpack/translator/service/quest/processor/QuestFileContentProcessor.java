@@ -49,6 +49,19 @@ public class QuestFileContentProcessor {
 	 * @return 処理結果
 	 */
 	public QuestFileResult process(File questFile, int currentIndex, int totalCount) {
+		return process(questFile, currentIndex, totalCount, null);
+	}
+	
+	/**
+	 * Quest Fileを処理します。
+	 * @param questFile 元のQuest File
+	 * @param currentIndex 現在のインデックス
+	 * @param totalCount 合計数
+	 * @param progressCallback 進捗コールバック
+	 * @return 処理結果
+	 */
+	public QuestFileResult process(File questFile, int currentIndex, int totalCount, 
+			io.github.pazakasin.minecraft.modpack.translator.service.callback.ProgressCallback progressCallback) {
 		try {
 			log(String.format("[Quest %d/%d] 処理開始: %s",
 					currentIndex, totalCount, questFile.getName()));
@@ -90,7 +103,7 @@ public class QuestFileContentProcessor {
 			
 			log(String.format("翻訳対象: %d個 (%d文字)", texts.size(), charCount));
 			
-			Map<String, String> translations = helper.translateQuestFileTexts(texts);
+			Map<String, String> translations = helper.translateQuestFileTexts(texts, progressCallback);
 			
 			parser.applyTranslations(questFile, outputFile, translations);
 			

@@ -79,7 +79,7 @@ public class KubeJSProcessor {
 					updateFileState(file);
 					
 					String translatedContent = translateWithProgress(
-							file.getFileContent(), currentNum, totalFiles);
+					file, file.getFileContent(), currentNum, totalFiles);
 					
 					writeKubeJSLangFiles(file.getFileId(), file.getFileContent(), translatedContent);
 					result.translated = true;
@@ -112,18 +112,22 @@ public class KubeJSProcessor {
 	
 	/**
 	 * 進捗通知付きで翻訳を実行します。
+	 * @param file 翻訳対象ファイル
 	 * @param content 翻訳対象コンテンツ
 	 * @param currentNum 現在の番号
 	 * @param totalFiles 全ファイル数
 	 * @return 翻訳済みコンテンツ
 	 * @throws Exception 翻訳エラー
 	 */
-	private String translateWithProgress(String content, final int currentNum, final int totalFiles) throws Exception {
+	private String translateWithProgress(final TranslatableFile file, String content, 
+			final int currentNum, final int totalFiles) throws Exception {
 		return translationService.translateJsonFile(content, new ProgressCallback() {
 			@Override
 			public void onProgress(int current, int total) {
-				logProgress(String.format("[%d/%d] 翻訳中: %d/%d エントリー",
-						currentNum, totalFiles, current, total));
+				file.setProgress(current, total);
+				updateFileState(file);
+				logProgress(String.format("[%d/%d] 翻訳中: %s (%d/%d)",
+						currentNum, totalFiles, file.getFileId(), current, total));
 			}
 		});
 	}

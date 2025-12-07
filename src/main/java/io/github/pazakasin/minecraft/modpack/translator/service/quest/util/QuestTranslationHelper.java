@@ -49,6 +49,18 @@ public class QuestTranslationHelper {
 	 * @throws Exception 翻訳エラー
 	 */
 	public Map<String, String> translateLangFileTexts(List<LangFileSNBTExtractor.ExtractedText> texts) throws Exception {
+		return translateLangFileTexts(texts, null);
+	}
+	
+	/**
+	 * Lang File用のテキストを翻訳します。
+	 * @param texts 翻訳対象テキストリスト
+	 * @param externalProgressCallback 外部からの進捗コールバック
+	 * @return キーと翻訳結果のマップ
+	 * @throws Exception 翻訳エラー
+	 */
+	public Map<String, String> translateLangFileTexts(List<LangFileSNBTExtractor.ExtractedText> texts, 
+			final ProgressCallback externalProgressCallback) throws Exception {
 		JsonObject combined = new JsonObject();
 		for (LangFileSNBTExtractor.ExtractedText text : texts) {
 			combined.addProperty(text.getKey(), text.getValue());
@@ -60,6 +72,9 @@ public class QuestTranslationHelper {
 				new ProgressCallback() {
 					@Override
 					public void onProgress(int current, int total) {
+						if (externalProgressCallback != null) {
+							externalProgressCallback.onProgress(current, total);
+						}
 						double percentage = (current * 100.0) / total;
 						log(String.format("翻訳中: %d/%d エントリー (%.1f%%)",
 								current, total, percentage));
@@ -82,6 +97,18 @@ public class QuestTranslationHelper {
 	 * @throws Exception 翻訳エラー
 	 */
 	public Map<String, String> translateQuestFileTexts(Map<String, String> texts) throws Exception {
+		return translateQuestFileTexts(texts, null);
+	}
+	
+	/**
+	 * Quest File用のテキストを翻訳します。
+	 * @param texts キーと値のマップ
+	 * @param externalProgressCallback 外部からの進捗コールバック
+	 * @return キーと翻訳結果のマップ
+	 * @throws Exception 翻訳エラー
+	 */
+	public Map<String, String> translateQuestFileTexts(Map<String, String> texts, 
+			final ProgressCallback externalProgressCallback) throws Exception {
 		JsonObject combined = new JsonObject();
 		for (Map.Entry<String, String> entry : texts.entrySet()) {
 			combined.addProperty(entry.getKey(), entry.getValue());
@@ -93,6 +120,9 @@ public class QuestTranslationHelper {
 				new ProgressCallback() {
 					@Override
 					public void onProgress(int current, int total) {
+						if (externalProgressCallback != null) {
+							externalProgressCallback.onProgress(current, total);
+						}
 						double percentage = (current * 100.0) / total;
 						log(String.format("翻訳中: %d/%d エントリー (%.1f%%)",
 								current, total, percentage));

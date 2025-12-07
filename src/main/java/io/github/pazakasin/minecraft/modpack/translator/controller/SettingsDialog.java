@@ -141,13 +141,13 @@ public class SettingsDialog extends JDialog {
         infoPanel.setBorder(BorderFactory.createTitledBorder("設定方法"));
         JTextArea infoArea = new JTextArea(
             "【Google Translation API】\n" +
-            "Google Cloud Console → Cloud Translation API を有効化 → APIキーを作成\n\n" +
+            "https://console.cloud.google.com/\n\n" +
             "【DeepL API】\n" +
-            "https://www.deepl.com/pro-api → 登録 → 認証キーを取得\n\n" +
+            "https://www.deepl.com/pro-api\n\n" +
             "【ChatGPT API】\n" +
-            "https://platform.openai.com/ → API keys → Create new secret key\n\n" +
+            "https://platform.openai.com/\n\n" +
             "【Claude API】\n" +
-            "https://console.anthropic.com/ → Get API keys → Create Key\n\n" +
+            "https://console.anthropic.com/\n\n" +
             "【pack_format】\n" +
             "リソースパックのpack_format値を指定します。\n" +
             "主なMinecraftバージョンとの対応: 1.20.2-1.20.4=15, 1.20.5-1.20.6=18, 1.21-1.21.1=34\n" +
