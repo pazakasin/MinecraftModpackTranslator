@@ -75,9 +75,7 @@ public class QuestTranslationHelper {
 						if (externalProgressCallback != null) {
 							externalProgressCallback.onProgress(current, total);
 						}
-						double percentage = (current * 100.0) / total;
-						log(String.format("翻訳中: %d/%d エントリー (%.1f%%)",
-								current, total, percentage));
+						// ログ出力は削除（状態列で表示）
 					}
 				});
 		
@@ -123,9 +121,7 @@ public class QuestTranslationHelper {
 						if (externalProgressCallback != null) {
 							externalProgressCallback.onProgress(current, total);
 						}
-						double percentage = (current * 100.0) / total;
-						log(String.format("翻訳中: %d/%d エントリー (%.1f%%)",
-								current, total, percentage));
+						// ログ出力は削除（状態列で表示）
 					}
 				});
 		

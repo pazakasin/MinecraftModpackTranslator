@@ -26,6 +26,8 @@ public class SettingsDialog extends JDialog {
     private JTextArea translationPromptField;
     /** pack_format入力フィールド */
     private JTextField packFormatField;
+    /** デバッグモードチェックボックス */
+    private JCheckBox debugModeCheckBox;
     /** 設定情報を保持するPropertiesオブジェクト */
     private Properties settings;
     /** 設定ファイルのパス */
@@ -47,7 +49,7 @@ public class SettingsDialog extends JDialog {
      */
     public SettingsDialog(Frame parent) {
         super(parent, "設定画面", true);
-        setSize(700, 650);
+        setSize(700, 680);
         setLocationRelativeTo(parent);
         
         settings = loadSettings();
@@ -119,6 +121,13 @@ public class SettingsDialog extends JDialog {
         gbc2.gridx = 1; gbc2.weightx = 1.0;
         packFormatField = new JTextField(5);
         packFormatPanel.add(packFormatField, gbc2);
+        
+        // デバッグモード設定
+        gbc2.gridx = 0; gbc2.gridy = 1; gbc2.weightx = 0; gbc2.gridwidth = 2;
+        debugModeCheckBox = new JCheckBox("デバッグモード（API呼び出しをスキップし、進捗表示のみテスト）");
+        debugModeCheckBox.setFont(new Font("Dialog", Font.PLAIN, 11));
+        packFormatPanel.add(debugModeCheckBox, gbc2);
+        gbc2.gridwidth = 1;
         
         // 翻訳プロンプトパネル
         JPanel promptPanel = new JPanel(new BorderLayout(5, 5));
@@ -213,8 +222,7 @@ public class SettingsDialog extends JDialog {
     private void loadCurrentSettings() {
         String providerName = settings.getProperty("provider", "GOOGLE");
         try {
-            ProviderType provider = 
-                ProviderType.valueOf(providerName);
+            ProviderType provider = ProviderType.valueOf(providerName);
             providerComboBox.setSelectedItem(provider);
         } catch (IllegalArgumentException e) {
             providerComboBox.setSelectedIndex(0);
@@ -226,14 +234,17 @@ public class SettingsDialog extends JDialog {
         claudeApiKeyField.setText(settings.getProperty("claude.apikey", ""));
         packFormatField.setText(settings.getProperty("pack_format", "15"));
         
+        // デバッグモード設定を読み込み
+        boolean debugMode = Boolean.parseBoolean(settings.getProperty("debug_mode", "false"));
+        debugModeCheckBox.setSelected(debugMode);
+        
         String storedPrompt = settings.getProperty("translation.prompt", "");
         translationPromptField.setText(storedPrompt.isEmpty() ? DEFAULT_TRANSLATION_PROMPT : storedPrompt);
     }
     
     /** 現在の設定内容を設定ファイルに保存します。 */
     private void saveSettings() {
-        ProviderType selectedProvider = 
-            (ProviderType) providerComboBox.getSelectedItem();
+        ProviderType selectedProvider = (ProviderType) providerComboBox.getSelectedItem();
         
         settings.setProperty("provider", selectedProvider.name());
         settings.setProperty("google.apikey", googleApiKeyField.getText().trim());
@@ -249,6 +260,9 @@ public class SettingsDialog extends JDialog {
             packFormatValue = "15";
         }
         settings.setProperty("pack_format", packFormatValue);
+        
+        // デバッグモード設定を保存
+        settings.setProperty("debug_mode", String.valueOf(debugModeCheckBox.isSelected()));
         
         try (FileOutputStream fos = new FileOutputStream(SETTINGS_FILE)) {
             settings.store(fos, "Translation Service Settings");
@@ -316,5 +330,14 @@ public class SettingsDialog extends JDialog {
         }
         
         return props;
+    }
+    
+    /**
+     * デバッグモードが有効かどうかを取得します。
+     * @return デバッグモード有効時true
+     */
+    public static boolean isDebugMode() {
+        Properties props = getStoredSettings();
+        return Boolean.parseBoolean(props.getProperty("debug_mode", "false"));
     }
 }

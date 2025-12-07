@@ -16,6 +16,77 @@ import io.github.pazakasin.minecraft.modpack.translator.service.processor.Langua
  * 既存ファイルのコピーまたは翻訳を実行。
  */
 public class ModLanguageFileHandler {
+	/**
+	 * 単一のMod言語ファイルを処理します。
+	 * @param file 処理対象ファイル
+	 * @param currentModNum 現在のインデックス
+	 * @param totalMods 合計数
+	 * @param results 結果リスト
+	 * @throws Exception 処理エラー
+	 */
+	public void processSingleFile(TranslatableFile file, int currentModNum, int totalMods,
+			List<ModProcessingResult> results) throws Exception {
+		ModProcessingResult result = new ModProcessingResult();
+		result.modName = file.getModName();
+		result.langFolderPath = file.getLangFolderPath();
+		result.hasEnUs = true;
+		result.hasJaJp = file.isHasExistingJaJp();
+		result.characterCount = file.getCharacterCount();
+		
+		try {
+			if (file.isHasExistingJaJp()) {
+				file.setProcessingState(ProcessingState.EXISTING);
+				file.setResultMessage(ProcessingState.EXISTING.getDisplayName());
+				updateFileState(file);
+				
+				fileWriter.writeLanguageFiles(file.getFileId(),
+						file.getFileContent(), file.getExistingJaJpContent());
+				result.translationSuccess = true;
+				
+				log(String.format("[Mod %d/%d][既存] %s - 日本語ファイルをコピー",
+						currentModNum, totalMods, file.getModName()));
+			} else {
+				file.setProcessingState(ProcessingState.TRANSLATING);
+				file.setResultMessage(ProcessingState.TRANSLATING.getDisplayName());
+				updateFileState(file);
+				
+				String translatedContent = translateWithProgress(
+				file, file.getFileContent(), currentModNum, totalMods);
+				
+				fileWriter.writeLanguageFiles(file.getFileId(),
+						file.getFileContent(), translatedContent);
+				result.translated = true;
+				result.translationSuccess = true;
+				
+				file.setProcessingState(ProcessingState.COMPLETED);
+				file.setResultMessage(ProcessingState.COMPLETED.getDisplayName());
+				updateFileState(file);
+				
+				log(String.format("[Mod %d/%d][翻訳] %s - 翻訳完了 (%d文字)",
+						currentModNum, totalMods, file.getModName(), file.getCharacterCount()));
+				
+				logProgress(" ");
+			}
+		} catch (Exception e) {
+			result.translated = true;
+			result.translationSuccess = false;
+			result.errorException = e;
+			
+			file.setProcessingState(ProcessingState.FAILED);
+			file.setResultMessage(ProcessingState.FAILED.getDisplayName() + ": " + e.getMessage());
+			updateFileState(file);
+			
+			log(String.format("[Mod %d/%d][失敗] %s: %s",
+					currentModNum, totalMods, file.getModName(), e.getMessage()));
+			logProcessingContent(file, e);
+			logStackTrace(e);
+			
+			logProgress(" ");
+		}
+		
+		results.add(result);
+	}
+	
 	/** 翻訳サービス。 */
 	private final TranslationService translationService;
 	
@@ -71,18 +142,20 @@ public class ModLanguageFileHandler {
 			
 			try {
 				if (file.isHasExistingJaJp()) {
-					file.setProcessingState(ProcessingState.EXISTING);
-					updateFileState(file);
+				file.setProcessingState(ProcessingState.EXISTING);
+				file.setResultMessage(ProcessingState.EXISTING.getDisplayName());
+				updateFileState(file);
 					
 					fileWriter.writeLanguageFiles(file.getFileId(),
 							file.getFileContent(), file.getExistingJaJpContent());
 					result.translationSuccess = true;
 					
-					log(String.format("[%d/%d][既存] %s - 日本語ファイルをコピー",
+					log(String.format("[Mod %d/%d][既存] %s - 日本語ファイルをコピー",
 							currentModNum, totalMods, file.getModName()));
 				} else {
-					file.setProcessingState(ProcessingState.TRANSLATING);
-					updateFileState(file);
+				file.setProcessingState(ProcessingState.TRANSLATING);
+				file.setResultMessage(ProcessingState.TRANSLATING.getDisplayName());
+				updateFileState(file);
 					
 					String translatedContent = translateWithProgress(
 					file, file.getFileContent(), currentModNum, totalMods);
@@ -93,9 +166,10 @@ public class ModLanguageFileHandler {
 					result.translationSuccess = true;
 					
 					file.setProcessingState(ProcessingState.COMPLETED);
-					updateFileState(file);
+					file.setResultMessage(ProcessingState.COMPLETED.getDisplayName());
+				updateFileState(file);
 					
-					log(String.format("[%d/%d][翻訳] %s - 翻訳完了 (%d文字)",
+					log(String.format("[Mod %d/%d][翻訳] %s - 翻訳完了 (%d文字)",
 							currentModNum, totalMods, file.getModName(), file.getCharacterCount()));
 					
 					logProgress(" ");
@@ -105,9 +179,10 @@ public class ModLanguageFileHandler {
 				result.translationSuccess = false;
 				
 				file.setProcessingState(ProcessingState.FAILED);
-				updateFileState(file);
+				file.setResultMessage(ProcessingState.FAILED.getDisplayName() + ": " + e.getMessage());
+			updateFileState(file);
 				
-				log(String.format("[%d/%d][失敗] %s: %s",
+				log(String.format("[Mod %d/%d][失敗] %s: %s",
 						currentModNum, totalMods, file.getModName(), e.getMessage()));
 				
 				logProgress(" ");
@@ -133,8 +208,7 @@ public class ModLanguageFileHandler {
 			public void onProgress(int current, int total) {
 				file.setProgress(current, total);
 				updateFileState(file);
-				logProgress(String.format("[%d/%d] 翻訳中: %s (%d/%d)",
-						currentMod, totalMods, file.getModName(), current, total));
+				// ログ出力を削除（状態列で表示）
 			}
 		});
 	}
@@ -156,6 +230,45 @@ public class ModLanguageFileHandler {
 	private void log(String message) {
 		if (logger != null) {
 			logger.onLog(message);
+		}
+	}
+	
+	/**
+	 * 処理中のファイル内容をログ出力します。
+	 * @param file 処理中のファイル
+	 * @param e 発生した例外
+	 */
+	private void logProcessingContent(TranslatableFile file, Exception e) {
+		if (logger != null) {
+			logger.onLog("");
+			logger.onLog("=== エラー発生時の処理内容 ===");
+			logger.onLog("Mod名: " + file.getModName());
+			logger.onLog("ファイルID: " + file.getFileId());
+			logger.onLog("エラー: " + e.getMessage());
+			
+			String content = file.getFileContent();
+			if (content != null) {
+				logger.onLog("処理中のJSON内容 (最初の500文字):");
+				String preview = content.length() > 500 ? content.substring(0, 500) + "..." : content;
+				logger.onLog(preview);
+				logger.onLog("総文字数: " + content.length());
+				logger.onLog("翻訳対象文字数: " + file.getCharacterCount());
+			}
+			logger.onLog("===");
+			logger.onLog("");
+		}
+	}
+	
+	/**
+	 * スタックトレースをログ出力します。
+	 * @param e 例外オブジェクト
+	 */
+	private void logStackTrace(Exception e) {
+		if (logger != null) {
+			java.io.StringWriter sw = new java.io.StringWriter();
+			java.io.PrintWriter pw = new java.io.PrintWriter(sw);
+			e.printStackTrace(pw);
+			logger.onLog(sw.toString());
 		}
 	}
 	

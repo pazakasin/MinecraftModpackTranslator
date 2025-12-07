@@ -92,6 +92,7 @@ public class QuestFileAnalyzer {
             } catch (Exception e) {
                 log(String.format("[Quest %d/%d][エラー] %s: %s", 
                     currentNum, totalNum, info.getFile().getName(), e.getMessage()));
+                logStackTrace(e);
             }
         }
         
@@ -143,6 +144,7 @@ public class QuestFileAnalyzer {
                 );
             } catch (Exception e) {
                 log("Quest言語ファイル解析エラー: " + file.getName() + " - " + e.getMessage());
+                logStackTrace(e);
                 return null;
             }
         } else {
@@ -161,6 +163,7 @@ public class QuestFileAnalyzer {
                 );
             } catch (Exception e) {
                 log("Questファイル解析エラー: " + file.getName() + " - " + e.getMessage());
+                logStackTrace(e);
                 return null;
             }
         }
@@ -173,6 +176,19 @@ public class QuestFileAnalyzer {
     private void log(String message) {
         if (logger != null) {
             logger.onLog(message);
+        }
+    }
+    
+    /**
+     * スタックトレースをログ出力します。
+     * @param e 例外オブジェクト
+     */
+    private void logStackTrace(Exception e) {
+        if (logger != null) {
+            java.io.StringWriter sw = new java.io.StringWriter();
+            java.io.PrintWriter pw = new java.io.PrintWriter(sw);
+            e.printStackTrace(pw);
+            logger.onLog(sw.toString());
         }
     }
     

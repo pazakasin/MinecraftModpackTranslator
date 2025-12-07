@@ -63,25 +63,9 @@ public class QuestFileContentProcessor {
 	public QuestFileResult process(File questFile, int currentIndex, int totalCount, 
 			io.github.pazakasin.minecraft.modpack.translator.service.callback.ProgressCallback progressCallback) {
 		try {
-			log(String.format("[Quest %d/%d] 処理開始: %s",
-					currentIndex, totalCount, questFile.getName()));
+			// ログ出力を削除（開始メッセージ不要）
 			
 			Map<String, String> texts = parser.extractTranslatableTexts(questFile);
-			
-			// デバッグログ（bees.snbtの場合のみ）
-			if (questFile.getName().equals("bees.snbt")) {
-				log("=== デバッグ: 抽出されたテキスト（全て） ===");
-				for (Map.Entry<String, String> entry : texts.entrySet()) {
-					String preview = entry.getValue();
-					if (preview.length() > 50) {
-						preview = preview.substring(0, 50) + "...";
-					}
-					preview = preview.replace("\n", "\\n");
-					log(entry.getKey() + ": " + preview);
-				}
-				log("合計: " + texts.size() + " 個");
-				log("====================================");
-			}
 			
 			File relativePath = getRelativePath(questFile);
 			File outputBase = outputDir.getParentFile();
@@ -89,7 +73,9 @@ public class QuestFileContentProcessor {
 			outputFile.getParentFile().mkdirs();
 			
 			if (texts.isEmpty()) {
-				log("翻訳対象テキストなし - ファイルをコピー");
+				// 翻訳対象なしの場合もログ出力
+				log(String.format("[Quest %d/%d][スキップ] %s - 翻訳対象テキストなし",
+						currentIndex, totalCount, questFile.getName()));
 				Files.copy(questFile.toPath(), outputFile.toPath(),
 						java.nio.file.StandardCopyOption.REPLACE_EXISTING);
 				return QuestFileResult.createQuestFileResult(
@@ -101,13 +87,15 @@ public class QuestFileContentProcessor {
 				charCount += value.length();
 			}
 			
-			log(String.format("翻訳対象: %d個 (%d文字)", texts.size(), charCount));
+			// ログ出力を削除（状態列で表示）
 			
 			Map<String, String> translations = helper.translateQuestFileTexts(texts, progressCallback);
 			
 			parser.applyTranslations(questFile, outputFile, translations);
 			
-			log("翻訳完了: " + outputFile.getAbsolutePath());
+			// Mod言語ファイル形式に合わせたログ
+			log(String.format("[Quest %d/%d][翻訳] %s - 翻訳完了 (%d文字)",
+					currentIndex, totalCount, questFile.getName(), charCount));
 			
 			return QuestFileResult.createQuestFileResult(
 					questFile, outputFile, true, true, charCount);
@@ -141,7 +129,7 @@ public class QuestFileContentProcessor {
 	 */
 	private void log(String message) {
 		if (logger != null) {
-			logger.onLog("[Quest] " + message);
+			logger.onLog(message);
 		}
 	}
 }

@@ -31,6 +31,15 @@ import io.github.pazakasin.minecraft.modpack.translator.service.callback.Progres
  * 並列処理とレート制限により高速かつ安全に翻訳。
  */
 public class ClaudeTranslationProvider implements TranslationProvider {
+	/**
+	 * デバッグモードを設定します。
+	 * @param debugMode trueでデバッグモード有効
+	 */
+	@Override
+	public void setDebugMode(boolean debugMode) {
+		this.debugMode = debugMode;
+	}
+
 	/** Anthropic APIのAPIキー。 */
 	private final String apiKey;
 
@@ -54,6 +63,9 @@ public class ClaudeTranslationProvider implements TranslationProvider {
 
 	/** 最後のリクエスト時刻を記録するリスト。 */
 	private final List<Long> requestTimestamps;
+
+	/** デバッグモード（API呼び出しをスキップ）。 */
+	private boolean debugMode = false;
 
 	/** デフォルトバッチサイズ。 */
 	private static final int DEFAULT_BATCH_SIZE = 100;
@@ -141,7 +153,8 @@ public class ClaudeTranslationProvider implements TranslationProvider {
 
 							return new BatchResult(batchIndex, result, null);
 						} catch (Exception e) {
-							return new BatchResult(batchIndex, null, e);
+						logBatchError(batchIndex, batches.size(), batch, e);
+						return new BatchResult(batchIndex, null, e);
 						}
 					}
 				});
@@ -234,6 +247,15 @@ public class ClaudeTranslationProvider implements TranslationProvider {
 	 * @throws Exception API通信エラー等
 	 */
 	private Map<String, String> translateBatch(Map<String, String> batch) throws Exception {
+		// デバッグモード時はダミーデータを返す
+		if (debugMode) {
+			Thread.sleep(500); // API呼び出しをシミュレート
+			Map<String, String> result = new LinkedHashMap<String, String>();
+			for (Map.Entry<String, String> entry : batch.entrySet()) {
+				result.put(entry.getKey(), "[デバッグ] " + entry.getValue());
+			}
+			return result;
+		}
 		JsonObject batchJson = new JsonObject();
 		for (Map.Entry<String, String> entry : batch.entrySet()) {
 			batchJson.addProperty(entry.getKey(), entry.getValue());
@@ -276,8 +298,11 @@ public class ClaudeTranslationProvider implements TranslationProvider {
 
 			int responseCode = conn.getResponseCode();
 			if (responseCode != 200) {
-				throw new IOException("Claude API Error: " + responseCode + " - " + readErrorStream(conn));
-			}
+			String errorMsg = readErrorStream(conn);
+			    IOException ioException = new IOException("Claude API Error: " + responseCode + " - " + errorMsg);
+                logApiError(ioException);
+                throw ioException;
+            }
 
 			String response = readInputStream(conn);
 			JsonObject jsonResponse = gson.fromJson(response, JsonObject.class);
@@ -326,13 +351,46 @@ public class ClaudeTranslationProvider implements TranslationProvider {
 	}
 
 	/**
-	 * プロバイダー名を取得します。
-	 * @return "Claude API"
-	 */
+	* プロバイダー名を取得します。
+	* @return "Claude API"
+	*/
 	@Override
 	public String getProviderName() {
-		return "Claude API";
+	return "Claude API";
 	}
+    
+    /**
+     * バッチ処理エラーをログ出力します。
+     * @param batchIndex バッチインデックス
+     * @param totalBatches 総バッチ数
+     * @param batch 処理中のバッチデータ
+     * @param e 例外オブジェクト
+     */
+    private void logBatchError(int batchIndex, int totalBatches, Map<String, String> batch, Exception e) {
+        System.err.println(String.format("[バッチ %d/%d エラー] %s", 
+            batchIndex + 1, totalBatches, e.getMessage()));
+        System.err.println("処理中のデータ (最初の3エントリー):");
+        int count = 0;
+        for (Map.Entry<String, String> entry : batch.entrySet()) {
+            if (count >= 3) break;
+            System.err.println(String.format("  %s: %s", entry.getKey(), 
+                entry.getValue().length() > 100 ? entry.getValue().substring(0, 100) + "..." : entry.getValue()));
+            count++;
+        }
+        if (batch.size() > 3) {
+            System.err.println(String.format("  ... 他 %d エントリー", batch.size() - 3));
+        }
+        e.printStackTrace();
+    }
+    
+    /**
+     * API呼び出しエラーをログ出力します。
+     * @param e 例外オブジェクト
+     */
+    private void logApiError(Exception e) {
+        System.err.println("[Claude API エラー] " + e.getMessage());
+        e.printStackTrace();
+    }
 
 	/**
 	 * バッチ翻訳結果を保持する内部クラス。

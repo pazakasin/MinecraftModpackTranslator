@@ -140,6 +140,7 @@ public class ModPackProcessor {
 			} catch (Exception e) {
 				log(String.format("[%d/%d][エラー] %s: %s",
 						currentModNum, totalMods, jarFile.getName(), e.getMessage()));
+				logStackTrace(e);
 				
 				ModProcessingResult errorResult = createErrorResult(jarFile);
 				results.add(errorResult);
@@ -178,8 +179,9 @@ public class ModPackProcessor {
 				results.add(questModResult);
 			}
 		} catch (Exception e) {
-			log("[Quest]エラー: " + e.getMessage());
-		}
+		log("[Quest]エラー: " + e.getMessage());
+		    logStackTrace(e);
+        }
 	}
 	
 	/**
@@ -224,8 +226,12 @@ public class ModPackProcessor {
 				log(String.format("[%d/%d][翻訳] %s - 翻訳完了 (%d文字)",
 						current, total, fileName, result.characterCount));
 			} else {
-				log(String.format("[%d/%d][失敗] %s - 翻訳に失敗しました",
-						current, total, fileName));
+				log(String.format("[%d/%d][失敗] %s: %s",
+						current, total, fileName, 
+						result.errorException != null ? result.errorException.getMessage() : "翻訳に失敗しました"));
+				if (result.errorException != null) {
+					logStackTrace(result.errorException);
+				}
 			}
 		} else {
 			log(String.format("[%d/%d][スキップ] %s - 英語ファイルが見つかりません",
@@ -291,8 +297,9 @@ public class ModPackProcessor {
 			log("");
 			log("pack.mcmetaを出力しました: " + packMetaFile.getAbsolutePath());
 		} catch (Exception e) {
-			log("pack.mcmetaの出力に失敗しました: " + e.getMessage());
-		}
+		log("pack.mcmetaの出力に失敗しました: " + e.getMessage());
+		    logStackTrace(e);
+        }
 	}
 	
 	/**
@@ -308,17 +315,31 @@ public class ModPackProcessor {
 				log("圧縮ファイル数: " + zipResult.fileCount);
 			}
 		} catch (Exception e) {
-			log("出力フォルダの圧縮に失敗しました: " + e.getMessage());
-		}
+		log("出力フォルダの圧縮に失敗しました: " + e.getMessage());
+		    logStackTrace(e);
+        }
 	}
 	
 	/**
-	 * ログメッセージを出力します。
-	 * @param message ログメッセージ
-	 */
+	* ログメッセージを出力します。
+	* @param message ログメッセージ
+	*/
 	private void log(String message) {
-		if (logger != null) {
-			logger.onLog(message);
-		}
+	if (logger != null) {
+	logger.onLog(message);
 	}
+	}
+    
+    /**
+     * スタックトレースをログ出力します。
+     * @param e 例外オブジェクト
+     */
+    private void logStackTrace(Exception e) {
+        if (logger != null) {
+            java.io.StringWriter sw = new java.io.StringWriter();
+            java.io.PrintWriter pw = new java.io.PrintWriter(sw);
+            e.printStackTrace(pw);
+            logger.onLog(sw.toString());
+        }
+    }
 }

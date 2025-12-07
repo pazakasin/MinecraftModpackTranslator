@@ -170,19 +170,22 @@ public class QuestFileProcessor {
 	 */
 	public QuestFileResult processSingleLangFile(File sourceFile, File existingJaJpFile, 
 			int characterCount, io.github.pazakasin.minecraft.modpack.translator.service.callback.ProgressCallback progressCallback) {
-		return langFileProcessor.process(sourceFile, existingJaJpFile, progressCallback);
+		return langFileProcessor.process(sourceFile, existingJaJpFile, characterCount, progressCallback);
 	}
 	
 	/**
 	 * 個別のQuest Fileを翻訳します（選択的処理用）。
 	 * @param sourceFile 元のQuest Fileパス
 	 * @param characterCount 文字数
+	 * @param currentIndex 現在のインデックス
+	 * @param totalCount 合計数
 	 * @param progressCallback 進捗コールバック
 	 * @return 処理結果
 	 */
 	public QuestFileResult processSingleQuestFile(File sourceFile, int characterCount, 
+			int currentIndex, int totalCount,
 			io.github.pazakasin.minecraft.modpack.translator.service.callback.ProgressCallback progressCallback) {
-		return questFileContentProcessor.process(sourceFile, 1, 1, progressCallback);
+		return questFileContentProcessor.process(sourceFile, currentIndex, totalCount, progressCallback);
 	}
 	
 	/**

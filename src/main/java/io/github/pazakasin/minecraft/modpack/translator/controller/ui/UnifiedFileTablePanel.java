@@ -254,11 +254,16 @@ public class UnifiedFileTablePanel extends JPanel {
 	}
 	
 	/**
-	 * 特定のファイルの処理状態を更新します。
+	 * 特定のファイルの処理状態を更新し、表をスクロールします。
 	 * @param file 対象ファイル
 	 */
 	public void updateFileState(TranslatableFile file) {
 		fileTableModel.updateFileState(file);
+		
+		int row = fileTableModel.findFileRow(file);
+		if (row >= 0) {
+			fileTable.scrollRectToVisible(fileTable.getCellRect(row, 0, true));
+		}
 	}
 	
 	/**

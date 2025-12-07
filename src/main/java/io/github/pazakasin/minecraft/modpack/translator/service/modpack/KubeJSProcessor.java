@@ -17,6 +17,75 @@ import io.github.pazakasin.minecraft.modpack.translator.service.callback.Progres
  * 既存ファイルのコピーまたは翻訳を実行。
  */
 public class KubeJSProcessor {
+	/**
+	 * 単一のKubeJS言語ファイルを処理します。
+	 * @param file 処理対象ファイル
+	 * @param currentNum 現在のインデックス
+	 * @param totalFiles 合計数
+	 * @param results 結果リスト
+	 * @throws Exception 処理エラー
+	 */
+	public void processSingleFile(TranslatableFile file, int currentNum, int totalFiles,
+			List<ModProcessingResult> results) throws Exception {
+		ModProcessingResult result = new ModProcessingResult();
+		result.modName = "KubeJS - " + file.getFileId();
+		result.langFolderPath = file.getLangFolderPath();
+		result.hasEnUs = true;
+		result.hasJaJp = file.isHasExistingJaJp();
+		result.characterCount = file.getCharacterCount();
+		
+		try {
+			if (file.isHasExistingJaJp()) {
+				file.setProcessingState(ProcessingState.EXISTING);
+				file.setResultMessage(ProcessingState.EXISTING.getDisplayName());
+				updateFileState(file);
+				
+				writeKubeJSLangFiles(file);
+				result.translationSuccess = true;
+				
+				log(String.format("[KubeJS %d/%d][既存] %s - 日本語ファイルをコピー",
+						currentNum, totalFiles, file.getFileId()));
+			} else {
+				file.setProcessingState(ProcessingState.TRANSLATING);
+				file.setResultMessage(ProcessingState.TRANSLATING.getDisplayName());
+				updateFileState(file);
+				
+				String translatedContent = translateWithProgress(
+				file, file.getFileContent(), currentNum, totalFiles);
+				
+				writeKubeJSLangFiles(file.getFileId(), file.getFileContent(), translatedContent);
+				result.translated = true;
+				result.translationSuccess = true;
+				
+				file.setProcessingState(ProcessingState.COMPLETED);
+				file.setResultMessage(ProcessingState.COMPLETED.getDisplayName());
+				updateFileState(file);
+				
+				log(String.format("[KubeJS %d/%d][翻訳] %s - 翻訳完了 (%d文字)",
+						currentNum, totalFiles, file.getFileId(), file.getCharacterCount()));
+				
+				logProgress(" ");
+			}
+		} catch (Exception e) {
+		result.translated = true;
+		result.translationSuccess = false;
+		result.errorException = e;
+		
+		file.setProcessingState(ProcessingState.FAILED);
+		file.setResultMessage(ProcessingState.FAILED.getDisplayName() + ": " + e.getMessage());
+		updateFileState(file);
+		
+		log(String.format("[KubeJS %d/%d][失敗] %s: %s",
+		currentNum, totalFiles, file.getFileId(), e.getMessage()));
+		logProcessingContent(file, e);
+		logStackTrace(e);
+		
+			logProgress(" ");
+			}
+		
+		results.add(result);
+	}
+	
 	/** 翻訳サービス。 */
 	private final TranslationService translationService;
 	
@@ -66,17 +135,19 @@ public class KubeJSProcessor {
 			
 			try {
 				if (file.isHasExistingJaJp()) {
-					file.setProcessingState(ProcessingState.EXISTING);
-					updateFileState(file);
+				file.setProcessingState(ProcessingState.EXISTING);
+				file.setResultMessage(ProcessingState.EXISTING.getDisplayName());
+				updateFileState(file);
 					
 					writeKubeJSLangFiles(file);
 					result.translationSuccess = true;
 					
-					log(String.format("[%d/%d][既存] %s - 日本語ファイルをコピー",
+					log(String.format("[KubeJS %d/%d][既存] %s - 日本語ファイルをコピー",
 							currentNum, totalFiles, file.getFileId()));
 				} else {
-					file.setProcessingState(ProcessingState.TRANSLATING);
-					updateFileState(file);
+				file.setProcessingState(ProcessingState.TRANSLATING);
+				file.setResultMessage(ProcessingState.TRANSLATING.getDisplayName());
+				updateFileState(file);
 					
 					String translatedContent = translateWithProgress(
 					file, file.getFileContent(), currentNum, totalFiles);
@@ -86,25 +157,29 @@ public class KubeJSProcessor {
 					result.translationSuccess = true;
 					
 					file.setProcessingState(ProcessingState.COMPLETED);
-					updateFileState(file);
+					file.setResultMessage(ProcessingState.COMPLETED.getDisplayName());
+				updateFileState(file);
 					
-					log(String.format("[%d/%d][翻訳] %s - 翻訳完了 (%d文字)",
+					log(String.format("[KubeJS %d/%d][翻訳] %s - 翻訳完了 (%d文字)",
 							currentNum, totalFiles, file.getFileId(), file.getCharacterCount()));
 					
 					logProgress(" ");
 				}
 			} catch (Exception e) {
-				result.translated = true;
-				result.translationSuccess = false;
-				
-				file.setProcessingState(ProcessingState.FAILED);
-				updateFileState(file);
-				
-				log(String.format("[%d/%d][失敗] %s: %s",
-						currentNum, totalFiles, file.getFileId(), e.getMessage()));
-				
-				logProgress(" ");
-			}
+			result.translated = true;
+			result.translationSuccess = false;
+			result.errorException = e;
+			
+			file.setProcessingState(ProcessingState.FAILED);
+			file.setResultMessage(ProcessingState.FAILED.getDisplayName() + ": " + e.getMessage());
+			updateFileState(file);
+			
+			log(String.format("[KubeJS %d/%d][失敗] %s: %s",
+			  currentNum, totalFiles, file.getFileId(), e.getMessage()));
+			logStackTrace(e);
+			 
+			logProgress(" ");
+		}
 			
 			results.add(result);
 		}
@@ -126,8 +201,7 @@ public class KubeJSProcessor {
 			public void onProgress(int current, int total) {
 				file.setProgress(current, total);
 				updateFileState(file);
-				logProgress(String.format("[%d/%d] 翻訳中: %s (%d/%d)",
-						currentNum, totalFiles, file.getFileId(), current, total));
+				// ログ出力を削除（状態列で表示）
 			}
 		});
 	}
@@ -176,6 +250,44 @@ public class KubeJSProcessor {
 	private void log(String message) {
 		if (logger != null) {
 			logger.onLog(message);
+		}
+	}
+	
+	/**
+	 * 処理中のファイル内容をログ出力します。
+	 * @param file 処理中のファイル
+	 * @param e 発生した例外
+	 */
+	private void logProcessingContent(TranslatableFile file, Exception e) {
+		if (logger != null) {
+			logger.onLog("");
+			logger.onLog("=== エラー発生時の処理内容 ===");
+			logger.onLog("KubeJSファイルID: " + file.getFileId());
+			logger.onLog("エラー: " + e.getMessage());
+			
+			String content = file.getFileContent();
+			if (content != null) {
+				logger.onLog("処理中のJSON内容 (最初の500文字):");
+				String preview = content.length() > 500 ? content.substring(0, 500) + "..." : content;
+				logger.onLog(preview);
+				logger.onLog("総文字数: " + content.length());
+				logger.onLog("翻訳対象文字数: " + file.getCharacterCount());
+			}
+			logger.onLog("===");
+			logger.onLog("");
+		}
+	}
+	
+	/**
+	 * スタックトレースをログ出力します。
+	 * @param e 例外オブジェクト
+	 */
+	private void logStackTrace(Exception e) {
+		if (logger != null) {
+			java.io.StringWriter sw = new java.io.StringWriter();
+			java.io.PrintWriter pw = new java.io.PrintWriter(sw);
+			e.printStackTrace(pw);
+			logger.onLog(sw.toString());
 		}
 	}
 	

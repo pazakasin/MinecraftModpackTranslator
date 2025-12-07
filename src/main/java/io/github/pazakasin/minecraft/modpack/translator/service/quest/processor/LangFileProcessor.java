@@ -60,7 +60,7 @@ public class LangFileProcessor {
 	 * @return 処理結果
 	 */
 	public QuestFileResult process(File langFile, File existingJaJpFile) {
-		return process(langFile, existingJaJpFile, null);
+		return process(langFile, existingJaJpFile, 0, null);
 	}
 	
 	/**
@@ -72,23 +72,28 @@ public class LangFileProcessor {
 	 */
 	public QuestFileResult process(File langFile, File existingJaJpFile, 
 			io.github.pazakasin.minecraft.modpack.translator.service.callback.ProgressCallback progressCallback) {
+		return process(langFile, existingJaJpFile, 0, progressCallback);
+	}
+	
+	/**
+	 * Lang Fileを処理します。既存のja_jp.snbtがある場合はコピーします。
+	 * @param langFile 元のLang File
+	 * @param existingJaJpFile 既存のja_jp.snbtファイル（なければnull）
+	 * @param charCount 文字数（ログ出力用、0の場合は内部で計算）
+	 * @param progressCallback 進捗コールバック
+	 * @return 処理結果
+	 */
+	public QuestFileResult process(File langFile, File existingJaJpFile, int charCount,
+			io.github.pazakasin.minecraft.modpack.translator.service.callback.ProgressCallback progressCallback) {
 		try {
-			log("Lang File処理開始: " + langFile.getName());
-			log("ファイルパス: " + langFile.getAbsolutePath());
-			
 			File outputBase = outputDir.getParentFile();
 			File outputLangDir = new File(outputBase, "config/ftbquests/quests/lang");
 			outputLangDir.mkdirs();
 			File outputFile = new File(outputLangDir, "ja_jp.snbt");
 			
 			if (existingJaJpFile != null && existingJaJpFile.exists()) {
-				log("既存の日本語ファイルが見つかりました: " + existingJaJpFile.getAbsolutePath());
-				log("既存ファイルをコピーします。");
-				
 				Files.copy(existingJaJpFile.toPath(), outputFile.toPath(),
 						java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-				
-				log("既存Lang Fileコピー完了: " + outputFile.getAbsolutePath());
 				
 				return QuestFileResult.createLangFileResult(
 						langFile, outputFile, false, true, 0);
@@ -98,19 +103,17 @@ public class LangFileProcessor {
 			List<LangFileSNBTExtractor.ExtractedText> texts = extractor.extract(rootTag);
 			
 			if (texts.isEmpty()) {
-				log("翻訳対象テキストが見つかりませんでした。");
 				return QuestFileResult.createLangFileResult(
 						langFile, null, false, false, 0);
 			}
 			
-			int charCount = countCharacters(texts);
-			log("翻訳対象テキスト数: " + texts.size() + " (" + charCount + "文字)");
+			if (charCount == 0) {
+				charCount = countCharacters(texts);
+			}
 			
 			Map<String, String> translations = helper.translateLangFileTexts(texts, progressCallback);
 			
 			applyTranslationsToLangFile(langFile, outputFile, translations);
-			
-			log("Lang File翻訳完了: " + outputFile.getAbsolutePath());
 			
 			return QuestFileResult.createLangFileResult(
 					langFile, outputFile, true, true, charCount);
@@ -231,15 +234,5 @@ public class LangFileProcessor {
 			count += text.getValue().length();
 		}
 		return count;
-	}
-	
-	/**
-	 * ログメッセージを出力します。
-	 * @param message ログメッセージ
-	 */
-	private void log(String message) {
-		if (logger != null) {
-			logger.onLog("[Quest] " + message);
-		}
 	}
 }

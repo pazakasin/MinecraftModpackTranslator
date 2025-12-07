@@ -18,6 +18,15 @@ import java.util.concurrent.atomic.AtomicInteger;
  * 並列処理により高速化。
  */
 public class ChatGPTTranslationProvider implements TranslationProvider {
+    /**
+     * デバッグモードを設定します。
+     * @param debugMode trueでデバッグモード有効
+     */
+    @Override
+    public void setDebugMode(boolean debugMode) {
+        this.debugMode = debugMode;
+    }
+    
     /** OpenAI APIのAPIキー。 */
     private final String apiKey;
     
@@ -29,6 +38,9 @@ public class ChatGPTTranslationProvider implements TranslationProvider {
     
     /** バッチサイズ（一度に翻訳するキーの数）。 */
     private final int batchSize;
+    
+    /** デバッグモード（API呼び出しをスキップ）。 */
+    private boolean debugMode = false;
     
     /** 最大同時実行数。 */
     private static final int MAX_CONCURRENT_REQUESTS = 10;
@@ -116,6 +128,7 @@ public class ChatGPTTranslationProvider implements TranslationProvider {
 
                             return new BatchResult(batchIndex, result, null);
                         } catch (Exception e) {
+                            logBatchError(batchIndex, batches.size(), batch, e);
                             return new BatchResult(batchIndex, null, e);
                         }
                     }
@@ -185,6 +198,15 @@ public class ChatGPTTranslationProvider implements TranslationProvider {
      * @throws Exception API通信エラー等
      */
     private Map<String, String> translateBatch(Map<String, String> batch) throws Exception {
+        // デバッグモード時はダミーデータを返す
+        if (debugMode) {
+        Thread.sleep(500); // API呼び出しをシミュレート
+        Map<String, String> result = new LinkedHashMap<String, String>();
+        for (Map.Entry<String, String> entry : batch.entrySet()) {
+        result.put(entry.getKey(), "[デバッグ] " + entry.getValue());
+        }
+        return result;
+        }
         JsonObject batchJson = new JsonObject();
         for (Map.Entry<String, String> entry : batch.entrySet()) {
             batchJson.addProperty(entry.getKey(), entry.getValue());
@@ -226,7 +248,10 @@ public class ChatGPTTranslationProvider implements TranslationProvider {
             
             int responseCode = conn.getResponseCode();
             if (responseCode != 200) {
-                throw new IOException("ChatGPT API Error: " + responseCode + " - " + readErrorStream(conn));
+                String errorMsg = readErrorStream(conn);
+                IOException ioException = new IOException("ChatGPT API Error: " + responseCode + " - " + errorMsg);
+                logApiError(ioException);
+                throw ioException;
             }
             
             String response = readInputStream(conn);
@@ -283,6 +308,39 @@ public class ChatGPTTranslationProvider implements TranslationProvider {
     @Override
     public String getProviderName() {
         return "ChatGPT API";
+    }
+    
+    /**
+     * バッチ処理エラーをログ出力します。
+     * @param batchIndex バッチインデックス
+     * @param totalBatches 総バッチ数
+     * @param batch 処理中のバッチデータ
+     * @param e 例外オブジェクト
+     */
+    private void logBatchError(int batchIndex, int totalBatches, Map<String, String> batch, Exception e) {
+        System.err.println(String.format("[バッチ %d/%d エラー] %s", 
+            batchIndex + 1, totalBatches, e.getMessage()));
+        System.err.println("処理中のデータ (最初の3エントリー):");
+        int count = 0;
+        for (Map.Entry<String, String> entry : batch.entrySet()) {
+            if (count >= 3) break;
+            System.err.println(String.format("  %s: %s", entry.getKey(), 
+                entry.getValue().length() > 100 ? entry.getValue().substring(0, 100) + "..." : entry.getValue()));
+            count++;
+        }
+        if (batch.size() > 3) {
+            System.err.println(String.format("  ... 他 %d エントリー", batch.size() - 3));
+        }
+        e.printStackTrace();
+    }
+    
+    /**
+     * API呼び出しエラーをログ出力します。
+     * @param e 例外オブジェクト
+     */
+    private void logApiError(Exception e) {
+        System.err.println("[ChatGPT API エラー] " + e.getMessage());
+        e.printStackTrace();
     }
 
     /**

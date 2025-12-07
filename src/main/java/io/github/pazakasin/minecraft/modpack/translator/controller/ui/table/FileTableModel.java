@@ -15,6 +15,20 @@ import io.github.pazakasin.minecraft.modpack.translator.model.TranslatableFile;
  * テーブルデータ、行列マッピング、ファイル管理を担当。
  */
 public class FileTableModel {
+	/**
+	 * ファイルが表示されている行番号を検索します。
+	 * @param file 対象ファイル
+	 * @return 行番号（見つからない場合は-1）
+	 */
+	public int findFileRow(TranslatableFile file) {
+		for (Map.Entry<Integer, TranslatableFile> entry : rowToFileMap.entrySet()) {
+			if (entry.getValue() == file) {
+				return entry.getKey();
+			}
+		}
+		return -1;
+	}
+	
 	/** テーブルのデータモデル。 */
 	private final DefaultTableModel tableModel;
 	
@@ -47,7 +61,6 @@ public class FileTableModel {
 	 * @param files 翻訳対象ファイルのリスト
 	 */
 	public void updateFileList(List<TranslatableFile> files) {
-		currentFiles = files;
 		rowToFileMap.clear();
 		groupHeaderRows.clear();
 		groupStartIndices.clear();
@@ -62,6 +75,9 @@ public class FileTableModel {
 			FileType.MOD_LANG_FILE
 		};
 		
+		// currentFilesを表示順（グループ化後の順序）で再構築
+		currentFiles = new ArrayList<TranslatableFile>();
+		
 		int dataIndex = 0;
 		
 		for (FileType type : order) {
@@ -70,6 +86,9 @@ public class FileTableModel {
 			}
 			
 			List<TranslatableFile> groupFiles = groupedFiles.get(type);
+			
+			// 表示順でcurrentFilesに追加
+			currentFiles.addAll(groupFiles);
 			
 			int headerRowIndex = tableModel.getRowCount();
 			groupHeaderRows.put(headerRowIndex, type);
@@ -102,7 +121,7 @@ public class FileTableModel {
 					file.getCharacterCount(),
 					file.getFileContent() != null ? "○" : "×",
 					jaValue,
-					file.getProcessingState().getDisplayName()
+					file.getResultMessage()
 				};
 				tableModel.addRow(row);
 				
@@ -142,7 +161,7 @@ public class FileTableModel {
 				int tableRow = entry.getKey();
 				
 				if (tableRow < tableModel.getRowCount()) {
-					tableModel.setValueAt(file.getProcessingState().getDisplayName(), tableRow, 7);
+					tableModel.setValueAt(file.getResultMessage(), tableRow, 7);
 				}
 				break;
 			}

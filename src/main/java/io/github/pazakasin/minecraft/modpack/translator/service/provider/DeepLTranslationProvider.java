@@ -13,6 +13,15 @@ import java.util.Map.Entry;
  * バッチサイズ50で効率的に複数エントリーを翻訳。
  */
 public class DeepLTranslationProvider implements TranslationProvider {
+    /**
+     * デバッグモードを設定します。
+     * @param debugMode trueでデバッグモード有効
+     */
+    @Override
+    public void setDebugMode(boolean debugMode) {
+        this.debugMode = debugMode;
+    }
+    
     /** 1回のAPIリクエストで送信するテキストの最大数。 */
     private static final int BATCH_SIZE = 50;
     
@@ -21,6 +30,9 @@ public class DeepLTranslationProvider implements TranslationProvider {
     
     /** JSON処理用のGsonインスタンス。 */
     private final Gson gson;
+    
+    /** デバッグモード（API呼び出しをスキップ）。 */
+    private boolean debugMode = false;
     
     /**
      * DeepLTranslationProviderのコンストラクタ。
@@ -81,8 +93,22 @@ public class DeepLTranslationProvider implements TranslationProvider {
         return gson.toJson(translated);
     }
     
-    /** テキストのバッチをDeepL APIで翻訳します。 */
+    /**
+     * テキストのバッチをDeepL APIで翻訳します。
+     * @param texts 翻訳対象テキストリスト
+     * @return 翻訳済みテキストリスト
+     * @throws Exception 翻訳エラー
+     */
     private List<String> translateBatch(List<String> texts) throws Exception {
+        // デバッグモード時はダミーデータを返す
+        if (debugMode) {
+        Thread.sleep(200); // API呼び出しをシミュレート
+        List<String> result = new ArrayList<>();
+        for (String text : texts) {
+        result.add("[デバッグ] " + text);
+        }
+        return result;
+        }
         String urlStr = "https://api-free.deepl.com/v2/translate";
         URL url = new URL(urlStr);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -107,7 +133,10 @@ public class DeepLTranslationProvider implements TranslationProvider {
             
             int responseCode = conn.getResponseCode();
             if (responseCode != 200) {
-                throw new IOException("DeepL API Error: " + responseCode + " - " + readErrorStream(conn));
+                String errorMsg = readErrorStream(conn);
+                IOException ioException = new IOException("DeepL API Error: " + responseCode + " - " + errorMsg);
+                logApiError(texts, ioException);
+                throw ioException;
             }
             
             String response = readInputStream(conn);
@@ -158,5 +187,24 @@ public class DeepLTranslationProvider implements TranslationProvider {
     @Override
     public String getProviderName() {
         return "DeepL API";
+    }
+    
+    /**
+     * API呼び出しエラーをログ出力します。
+     * @param texts 処理中のテキストリスト
+     * @param e 例外オブジェクト
+     */
+    private void logApiError(List<String> texts, Exception e) {
+        System.err.println("[DeepL API エラー] " + e.getMessage());
+        System.err.println("処理中のデータ (最初の3エントリー):");
+        for (int i = 0; i < Math.min(3, texts.size()); i++) {
+            String text = texts.get(i);
+            System.err.println(String.format("  [%d]: %s", i + 1, 
+                text.length() > 100 ? text.substring(0, 100) + "..." : text));
+        }
+        if (texts.size() > 3) {
+            System.err.println(String.format("  ... 他 %d エントリー", texts.size() - 3));
+        }
+        e.printStackTrace();
     }
 }

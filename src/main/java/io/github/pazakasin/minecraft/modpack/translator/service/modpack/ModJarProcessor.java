@@ -82,12 +82,49 @@ public class ModJarProcessor {
 			} catch (Exception e) {
 				result.translated = true;
 				result.translationSuccess = false;
-				throw e;
+				result.errorException = e;
+				
+				// エラー時に処理中のファイル内容をログ出力
+				logProcessingContent(jarFile.getName(), langInfo.modId, langInfo.enUsContent, e);
 			}
 		}
 		
 		return result;
 	}
 	
+	/**
+	 * 処理中のファイル内容をログ出力します。
+	 * @param jarFileName JARファイル名
+	 * @param modId Mod ID
+	 * @param content 処理中のJSON内容
+	 * @param e 発生した例外
+	 */
+	private void logProcessingContent(String jarFileName, String modId, String content, Exception e) {
+		if (logger != null) {
+			logger.onLog("");
+			logger.onLog("=== エラー発生時の処理内容 ===");
+			logger.onLog("JARファイル: " + jarFileName);
+			logger.onLog("Mod ID: " + modId);
+			logger.onLog("エラー: " + e.getMessage());
+			
+			// JSON内容の最初の部分を表示（500文字まで）
+			if (content != null) {
+				logger.onLog("処理中のJSON内容 (最初の500文字):");
+				String preview = content.length() > 500 ? content.substring(0, 500) + "..." : content;
+				logger.onLog(preview);
+				logger.onLog("総文字数: " + content.length());
+				
+				// エントリー数をカウント
+				try {
+					com.google.gson.JsonObject json = new com.google.gson.Gson().fromJson(content, com.google.gson.JsonObject.class);
+					logger.onLog("エントリー数: " + json.size());
+				} catch (Exception parseError) {
+					logger.onLog("JSONパースエラー: " + parseError.getMessage());
+				}
+			}
+			logger.onLog("===");
+			logger.onLog("");
+		}
+	}
 
 }

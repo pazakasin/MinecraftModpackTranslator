@@ -107,6 +107,19 @@ public class FileAnalysisService {
     }
     
     /**
+     * スタックトレースをログ出力します。
+     * @param e 例外オブジェクト
+     */
+    private void logStackTrace(Exception e) {
+        if (logger != null) {
+            java.io.StringWriter sw = new java.io.StringWriter();
+            java.io.PrintWriter pw = new java.io.PrintWriter(sw);
+            e.printStackTrace(pw);
+            logger.onLog(sw.toString());
+        }
+    }
+    
+    /**
      * work フォルダをクリアします。
      */
     private void clearWorkFolder() {
@@ -188,6 +201,7 @@ public class FileAnalysisService {
             }
         } catch (Exception e) {
             log("workフォルダのバックアップに失敗しました: " + e.getMessage());
+            logStackTrace(e);
         }
     }
 }

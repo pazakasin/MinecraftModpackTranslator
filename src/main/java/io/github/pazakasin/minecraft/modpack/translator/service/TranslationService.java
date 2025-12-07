@@ -8,6 +8,17 @@ import io.github.pazakasin.minecraft.modpack.translator.service.provider.*;
  * 複数の翻訳プロバイダーを統合し、Strategyパターンで実行時に切り替え可能。
  */
 public class TranslationService {
+    /**
+     * デバッグモードを設定します。
+     * デバッグモード時はAPI呼び出しをスキップし、進捗表示のみをシミュレートします。
+     * @param debugMode trueでデバッグモード有効
+     */
+    public void setDebugMode(boolean debugMode) {
+        if (currentProvider != null) {
+            currentProvider.setDebugMode(debugMode);
+        }
+    }
+    
     /** 現在設定されているAPIキー。プロバイダーの認証に使用。 */
     private String apiKey;
     
@@ -87,6 +98,18 @@ public class TranslationService {
                 break;
             default:
                 throw new IllegalStateException("Unknown provider: " + providerType);
+        }
+        
+        // 設定ファイルからデバッグモードを読み込んで適用
+        try {
+            Class<?> settingsClass = Class.forName("io.github.pazakasin.minecraft.modpack.translator.controller.SettingsDialog");
+            java.lang.reflect.Method isDebugModeMethod = settingsClass.getMethod("isDebugMode");
+            Boolean debugMode = (Boolean) isDebugModeMethod.invoke(null);
+            if (debugMode != null && debugMode) {
+                currentProvider.setDebugMode(true);
+            }
+        } catch (Exception e) {
+            // デバッグモード設定の読み込み失敗しても無視
         }
     }
     

@@ -21,4 +21,13 @@ public interface TranslationProvider {
      * @return プロバイダー名
      */
     String getProviderName();
+    
+    /**
+     * デバッグモードを設定します。
+     * デバッグモード時はAPI呼び出しをスキップし、進捗表示のみをシミュレートします。
+     * @param debugMode trueでデバッグモード有効
+     */
+    default void setDebugMode(boolean debugMode) {
+        // デフォルト実装は何もしない（後方互換性のため）
+    }
 }

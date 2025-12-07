@@ -28,6 +28,9 @@ public class ModProcessingResult {
     /** 翻訳に成功したか。 */
     public boolean translationSuccess = false;
     
+    /** エラー情報。失敗時のみ設定される。 */
+    public Exception errorException = null;
+    
     /** クエスト翻訳結果。nullの場合クエスト処理なし。 */
     public QuestTranslationResult questResult = null;
     

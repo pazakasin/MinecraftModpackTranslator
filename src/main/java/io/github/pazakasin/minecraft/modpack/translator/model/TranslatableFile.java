@@ -56,11 +56,11 @@ public class TranslatableFile {
      * TranslatableFileのデフォルトコンストラクタ。
      */
     public TranslatableFile() {
-        this.selected = true;
-        this.processingState = ProcessingState.PENDING;
-        this.resultMessage = "-";
-        this.currentProgress = 0;
-        this.totalProgress = 0;
+    this.selected = true;
+    this.processingState = ProcessingState.PENDING;
+    this.resultMessage = ProcessingState.PENDING.getDisplayName();
+    this.currentProgress = 0;
+    this.totalProgress = 0;
     }
     
     /**
