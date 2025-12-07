@@ -18,6 +18,10 @@ public class SettingsDialog extends JDialog {
     private JTextField googleApiKeyField;
     /** DeepL API のAPIキー入力フィールド */
     private JTextField deeplApiKeyField;
+    /** ChatGPT API のAPIキー入力フィールド */
+    private JTextField chatgptApiKeyField;
+    /** Claude API のAPIキー入力フィールド */
+    private JTextField claudeApiKeyField;
     /** 翻訳プロンプト入力フィールド */
     private JTextArea translationPromptField;
     /** pack_format入力フィールド */
@@ -45,7 +49,7 @@ public class SettingsDialog extends JDialog {
      */
     public SettingsDialog(Frame parent) {
         super(parent, "設定画面", true);
-        setSize(700, 580);
+        setSize(700, 680);
         setLocationRelativeTo(parent);
         
         settings = loadSettings();
@@ -61,13 +65,7 @@ public class SettingsDialog extends JDialog {
         // プロバイダー選択パネル
         JPanel providerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         providerPanel.add(new JLabel("翻訳プロバイダー:"));
-        
-        // ChatGPTとClaudeを除外したプロバイダーリスト
-        ProviderType[] availableProviders = new ProviderType[] {
-            ProviderType.GOOGLE,
-            ProviderType.DEEPL
-        };
-        providerComboBox = new JComboBox<>(availableProviders);
+        providerComboBox = new JComboBox<>(ProviderType.values());
         providerComboBox.setRenderer(new DefaultListCellRenderer() {
             public Component getListCellRendererComponent(JList<?> list, Object value, 
                     int index, boolean isSelected, boolean cellHasFocus) {
@@ -99,6 +97,18 @@ public class SettingsDialog extends JDialog {
         deeplApiKeyField = new JTextField(30);
         apiKeyPanel.add(deeplApiKeyField, gbc);
         
+        gbc.gridx = 0; gbc.gridy = 2; gbc.weightx = 0;
+        apiKeyPanel.add(new JLabel("ChatGPT API:"), gbc);
+        gbc.gridx = 1; gbc.weightx = 1.0;
+        chatgptApiKeyField = new JTextField(30);
+        apiKeyPanel.add(chatgptApiKeyField, gbc);
+        
+        gbc.gridx = 0; gbc.gridy = 3; gbc.weightx = 0;
+        apiKeyPanel.add(new JLabel("Claude API:"), gbc);
+        gbc.gridx = 1; gbc.weightx = 1.0;
+        claudeApiKeyField = new JTextField(30);
+        apiKeyPanel.add(claudeApiKeyField, gbc);
+        
         // pack_formatパネル
         JPanel packFormatPanel = new JPanel(new GridBagLayout());
         packFormatPanel.setBorder(BorderFactory.createTitledBorder("リソースパック設定"));
@@ -119,6 +129,22 @@ public class SettingsDialog extends JDialog {
         packFormatPanel.add(debugModeCheckBox, gbc2);
         gbc2.gridwidth = 1;
         
+        // 翻訳プロンプトパネル
+        JPanel promptPanel = new JPanel(new BorderLayout(5, 5));
+        promptPanel.setBorder(BorderFactory.createTitledBorder("翻訳プロンプト（ChatGPT/Claude用）"));
+        
+        translationPromptField = new JTextArea(5, 50);
+        translationPromptField.setLineWrap(true);
+        translationPromptField.setWrapStyleWord(true);
+        translationPromptField.setFont(new Font("Dialog", Font.PLAIN, 12));
+        
+        JScrollPane promptScrollPane = new JScrollPane(translationPromptField);
+        promptPanel.add(promptScrollPane, BorderLayout.CENTER);
+        
+        JLabel promptHint = new JLabel("※{jsonContent}がJSONデータに置換されます。空欄の場合はデフォルトプロンプトを使用します。");
+        promptHint.setFont(new Font("Dialog", Font.PLAIN, 10));
+        promptPanel.add(promptHint, BorderLayout.SOUTH);
+        
         // 説明パネル
         JPanel infoPanel = new JPanel(new BorderLayout());
         infoPanel.setBorder(BorderFactory.createTitledBorder("設定方法"));
@@ -127,12 +153,14 @@ public class SettingsDialog extends JDialog {
             "https://console.cloud.google.com/\n\n" +
             "【DeepL API】\n" +
             "https://www.deepl.com/pro-api\n\n" +
+            "【ChatGPT API】\n" +
+            "https://platform.openai.com/\n\n" +
+            "【Claude API】\n" +
+            "https://console.anthropic.com/\n\n" +
             "【pack_format】\n" +
             "リソースパックのpack_format値を指定します。\n" +
             "主なMinecraftバージョンとの対応: 1.20.2-1.20.4=15, 1.20.5-1.20.6=18, 1.21-1.21.1=34\n" +
-            "※値が異なる場合、リソースパック適用時に警告が出ますが、強制適用可能です。\n\n" +
-            "【注意】\n" +
-            "ChatGPTとClaudeは現在、レート制限の実装を精査中のため選択できません。"
+            "※値が異なる場合、リソースパック適用時に警告が出ますが、強制適用可能です。"
         );
         infoArea.setEditable(false);
         infoArea.setLineWrap(true);
@@ -158,7 +186,12 @@ public class SettingsDialog extends JDialog {
         
         JPanel settingsPanel = new JPanel(new BorderLayout(5, 5));
         settingsPanel.add(apiKeyPanel, BorderLayout.NORTH);
-        settingsPanel.add(packFormatPanel, BorderLayout.CENTER);
+        
+        JPanel lowerSettings = new JPanel(new BorderLayout(5, 5));
+        lowerSettings.add(packFormatPanel, BorderLayout.NORTH);
+        lowerSettings.add(promptPanel, BorderLayout.CENTER);
+        
+        settingsPanel.add(lowerSettings, BorderLayout.CENTER);
         
         topPanel.add(settingsPanel, BorderLayout.CENTER);
         
@@ -190,10 +223,6 @@ public class SettingsDialog extends JDialog {
         String providerName = settings.getProperty("provider", "GOOGLE");
         try {
             ProviderType provider = ProviderType.valueOf(providerName);
-            // ChatGPTまたはClaudeが選択されていた場合はGOOGLEにフォールバック
-            if (provider == ProviderType.CHATGPT || provider == ProviderType.CLAUDE) {
-                provider = ProviderType.GOOGLE;
-            }
             providerComboBox.setSelectedItem(provider);
         } catch (IllegalArgumentException e) {
             providerComboBox.setSelectedIndex(0);
@@ -201,11 +230,16 @@ public class SettingsDialog extends JDialog {
         
         googleApiKeyField.setText(settings.getProperty("google.apikey", ""));
         deeplApiKeyField.setText(settings.getProperty("deepl.apikey", ""));
+        chatgptApiKeyField.setText(settings.getProperty("chatgpt.apikey", ""));
+        claudeApiKeyField.setText(settings.getProperty("claude.apikey", ""));
         packFormatField.setText(settings.getProperty("pack_format", "15"));
         
         // デバッグモード設定を読み込み
         boolean debugMode = Boolean.parseBoolean(settings.getProperty("debug_mode", "false"));
         debugModeCheckBox.setSelected(debugMode);
+        
+        String storedPrompt = settings.getProperty("translation.prompt", "");
+        translationPromptField.setText(storedPrompt.isEmpty() ? DEFAULT_TRANSLATION_PROMPT : storedPrompt);
     }
     
     /** 現在の設定内容を設定ファイルに保存します。 */
@@ -215,6 +249,11 @@ public class SettingsDialog extends JDialog {
         settings.setProperty("provider", selectedProvider.name());
         settings.setProperty("google.apikey", googleApiKeyField.getText().trim());
         settings.setProperty("deepl.apikey", deeplApiKeyField.getText().trim());
+        settings.setProperty("chatgpt.apikey", chatgptApiKeyField.getText().trim());
+        settings.setProperty("claude.apikey", claudeApiKeyField.getText().trim());
+        
+        String promptText = translationPromptField.getText().trim();
+        settings.setProperty("translation.prompt", promptText.isEmpty() ? DEFAULT_TRANSLATION_PROMPT : promptText);
         
         String packFormatValue = packFormatField.getText().trim();
         if (packFormatValue.isEmpty()) {
