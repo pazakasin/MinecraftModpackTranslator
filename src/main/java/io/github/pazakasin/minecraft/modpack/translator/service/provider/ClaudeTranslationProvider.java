@@ -11,6 +11,13 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -21,7 +28,7 @@ import io.github.pazakasin.minecraft.modpack.translator.service.callback.Progres
 
 /**
  * Anthropic Claude APIを使用した翻訳プロバイダー。
- * バッチ分割により大きなファイルも安全に翻訳可能。
+ * 並列処理とレート制限により高速かつ安全に翻訳。
  */
 public class ClaudeTranslationProvider implements TranslationProvider {
 	/** Anthropic APIのAPIキー。 */
@@ -35,6 +42,18 @@ public class ClaudeTranslationProvider implements TranslationProvider {
 
 	/** バッチサイズ（一度に翻訳するキーの数）。 */
 	private final int batchSize;
+
+	/** 最大同時実行数。 */
+	private static final int MAX_CONCURRENT_REQUESTS = 5;
+
+	/** レート制限（40リクエスト/分 = 安全のため余裕を持たせる）。 */
+	private static final int RATE_LIMIT_PER_MINUTE = 40;
+
+	/** レート制限用セマフォ。 */
+	private final Semaphore rateLimiter;
+
+	/** 最後のリクエスト時刻を記録するリスト。 */
+	private final List<Long> requestTimestamps;
 
 	/** デフォルトバッチサイズ。 */
 	private static final int DEFAULT_BATCH_SIZE = 100;
@@ -75,11 +94,13 @@ public class ClaudeTranslationProvider implements TranslationProvider {
 		this.customPrompt = customPrompt;
 		this.batchSize = batchSize > 0 ? batchSize : DEFAULT_BATCH_SIZE;
 		this.gson = new GsonBuilder().setPrettyPrinting().create();
+		this.rateLimiter = new Semaphore(RATE_LIMIT_PER_MINUTE);
+		this.requestTimestamps = new ArrayList<Long>();
 	}
 
 	/**
 	 * JSON形式の言語ファイルをClaude APIで翻訳します。
-	 * バッチ分割により大きなファイルも安全に処理可能。
+	 * 並列処理により高速化、レート制限で安全性を確保。
 	 * @param jsonContent 翻訳元JSONコンテンツ
 	 * @param progressCallback 進捗コールバック
 	 * @return 翻訳後のJSONコンテンツ
@@ -96,21 +117,56 @@ public class ClaudeTranslationProvider implements TranslationProvider {
 
 		List<Map<String, String>> batches = splitIntoBatches(sourceJson);
 		Map<String, String> translatedMap = new LinkedHashMap<String, String>();
-		int processedKeys = 0;
+		AtomicInteger processedKeys = new AtomicInteger(0);
 
-		for (int i = 0; i < batches.size(); i++) {
-			Map<String, String> batch = batches.get(i);
-			
-			try {
-				Map<String, String> translatedBatch = translateBatch(batch);
-				translatedMap.putAll(translatedBatch);
-				processedKeys += batch.size();
+		ExecutorService executor = Executors.newFixedThreadPool(MAX_CONCURRENT_REQUESTS);
+		List<Future<BatchResult>> futures = new ArrayList<Future<BatchResult>>();
 
-				if (progressCallback != null) {
-					progressCallback.onProgress(processedKeys, totalKeys);
+		try {
+			for (int i = 0; i < batches.size(); i++) {
+				final int batchIndex = i;
+				final Map<String, String> batch = batches.get(i);
+
+				Future<BatchResult> future = executor.submit(new Callable<BatchResult>() {
+					@Override
+					public BatchResult call() throws Exception {
+						try {
+							acquireRateLimit();
+							Map<String, String> result = translateBatch(batch);
+							int currentProcessed = processedKeys.addAndGet(batch.size());
+
+							if (progressCallback != null) {
+								progressCallback.onProgress(currentProcessed, totalKeys);
+							}
+
+							return new BatchResult(batchIndex, result, null);
+						} catch (Exception e) {
+							return new BatchResult(batchIndex, null, e);
+						}
+					}
+				});
+
+				futures.add(future);
+			}
+
+			for (Future<BatchResult> future : futures) {
+				BatchResult result = future.get();
+				if (result.error != null) {
+					throw new Exception("バッチ " + (result.batchIndex + 1) + "/" + batches.size() +
+							" の翻訳に失敗しました: " + result.error.getMessage(), result.error);
 				}
-			} catch (Exception e) {
-				throw new Exception("バッチ " + (i + 1) + "/" + batches.size() + " の翻訳に失敗しました: " + e.getMessage(), e);
+				translatedMap.putAll(result.translations);
+			}
+
+		} finally {
+			executor.shutdown();
+			try {
+				if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+					executor.shutdownNow();
+				}
+			} catch (InterruptedException e) {
+				executor.shutdownNow();
+				Thread.currentThread().interrupt();
 			}
 		}
 
@@ -120,6 +176,30 @@ public class ClaudeTranslationProvider implements TranslationProvider {
 		}
 
 		return gson.toJson(resultJson);
+	}
+
+	/**
+	 * レート制限を適用します（40リクエスト/分）。
+	 * @throws InterruptedException スレッド中断
+	 */
+	private synchronized void acquireRateLimit() throws InterruptedException {
+		long now = System.currentTimeMillis();
+		final long oneMinuteAgo = now - 60000;
+
+		requestTimestamps.removeIf(timestamp -> timestamp < oneMinuteAgo);
+
+		if (requestTimestamps.size() >= RATE_LIMIT_PER_MINUTE) {
+			long oldestTimestamp = requestTimestamps.get(0);
+			long waitTime = 60000 - (now - oldestTimestamp) + 100;
+			if (waitTime > 0) {
+				Thread.sleep(waitTime);
+			}
+			now = System.currentTimeMillis();
+			final long oneMinuteAgoAfterWait = now - 60000;
+			requestTimestamps.removeIf(timestamp -> timestamp < oneMinuteAgoAfterWait);
+		}
+
+		requestTimestamps.add(now);
 	}
 
 	/**
@@ -252,5 +332,20 @@ public class ClaudeTranslationProvider implements TranslationProvider {
 	@Override
 	public String getProviderName() {
 		return "Claude API";
+	}
+
+	/**
+	 * バッチ翻訳結果を保持する内部クラス。
+	 */
+	private static class BatchResult {
+		final int batchIndex;
+		final Map<String, String> translations;
+		final Exception error;
+
+		BatchResult(int batchIndex, Map<String, String> translations, Exception error) {
+			this.batchIndex = batchIndex;
+			this.translations = translations;
+			this.error = error;
+		}
 	}
 }

@@ -6,10 +6,16 @@ import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * OpenAI ChatGPT APIを使用した翻訳プロバイダー。
- * バッチ分割により大きなファイルも安全に翻訳可能。
+ * 並列処理により高速化。
  */
 public class ChatGPTTranslationProvider implements TranslationProvider {
     /** OpenAI APIのAPIキー。 */
@@ -23,6 +29,9 @@ public class ChatGPTTranslationProvider implements TranslationProvider {
     
     /** バッチサイズ（一度に翻訳するキーの数）。 */
     private final int batchSize;
+    
+    /** 最大同時実行数。 */
+    private static final int MAX_CONCURRENT_REQUESTS = 10;
     
     /** デフォルトバッチサイズ。 */
     private static final int DEFAULT_BATCH_SIZE = 100;
@@ -67,7 +76,7 @@ public class ChatGPTTranslationProvider implements TranslationProvider {
     
     /**
      * JSON形式の言語ファイルをChatGPT APIで翻訳します。
-     * バッチ分割により大きなファイルも安全に処理可能。
+     * 並列処理により高速化。
      * @param jsonContent 翻訳元JSONコンテンツ
      * @param progressCallback 進捗コールバック
      * @return 翻訳後のJSONコンテンツ
@@ -84,21 +93,55 @@ public class ChatGPTTranslationProvider implements TranslationProvider {
 
         List<Map<String, String>> batches = splitIntoBatches(sourceJson);
         Map<String, String> translatedMap = new LinkedHashMap<String, String>();
-        int processedKeys = 0;
+        AtomicInteger processedKeys = new AtomicInteger(0);
 
-        for (int i = 0; i < batches.size(); i++) {
-            Map<String, String> batch = batches.get(i);
-            
-            try {
-                Map<String, String> translatedBatch = translateBatch(batch);
-                translatedMap.putAll(translatedBatch);
-                processedKeys += batch.size();
+        ExecutorService executor = Executors.newFixedThreadPool(MAX_CONCURRENT_REQUESTS);
+        List<Future<BatchResult>> futures = new ArrayList<Future<BatchResult>>();
 
-                if (progressCallback != null) {
-                    progressCallback.onProgress(processedKeys, totalKeys);
+        try {
+            for (int i = 0; i < batches.size(); i++) {
+                final int batchIndex = i;
+                final Map<String, String> batch = batches.get(i);
+
+                Future<BatchResult> future = executor.submit(new Callable<BatchResult>() {
+                    @Override
+                    public BatchResult call() throws Exception {
+                        try {
+                            Map<String, String> result = translateBatch(batch);
+                            int currentProcessed = processedKeys.addAndGet(batch.size());
+
+                            if (progressCallback != null) {
+                                progressCallback.onProgress(currentProcessed, totalKeys);
+                            }
+
+                            return new BatchResult(batchIndex, result, null);
+                        } catch (Exception e) {
+                            return new BatchResult(batchIndex, null, e);
+                        }
+                    }
+                });
+
+                futures.add(future);
+            }
+
+            for (Future<BatchResult> future : futures) {
+                BatchResult result = future.get();
+                if (result.error != null) {
+                    throw new Exception("バッチ " + (result.batchIndex + 1) + "/" + batches.size() +
+                            " の翻訳に失敗しました: " + result.error.getMessage(), result.error);
                 }
-            } catch (Exception e) {
-                throw new Exception("バッチ " + (i + 1) + "/" + batches.size() + " の翻訳に失敗しました: " + e.getMessage(), e);
+                translatedMap.putAll(result.translations);
+            }
+
+        } finally {
+            executor.shutdown();
+            try {
+                if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+                    executor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                executor.shutdownNow();
+                Thread.currentThread().interrupt();
             }
         }
 
@@ -240,5 +283,20 @@ public class ChatGPTTranslationProvider implements TranslationProvider {
     @Override
     public String getProviderName() {
         return "ChatGPT API";
+    }
+
+    /**
+     * バッチ翻訳結果を保持する内部クラス。
+     */
+    private static class BatchResult {
+        final int batchIndex;
+        final Map<String, String> translations;
+        final Exception error;
+
+        BatchResult(int batchIndex, Map<String, String> translations, Exception error) {
+            this.batchIndex = batchIndex;
+            this.translations = translations;
+            this.error = error;
+        }
     }
 }
