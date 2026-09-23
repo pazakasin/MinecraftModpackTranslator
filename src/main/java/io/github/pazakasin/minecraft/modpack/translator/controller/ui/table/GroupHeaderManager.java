@@ -11,6 +11,8 @@ import javax.swing.JTable;
 import javax.swing.SwingConstants;
 import javax.swing.table.TableCellRenderer;
 
+import io.github.pazakasin.minecraft.modpack.translator.model.TranslatableFile;
+
 /**
  * グループヘッダー行の表示・レンダリングを管理するクラス。
  */
@@ -69,6 +71,9 @@ public class GroupHeaderManager {
 					setForeground(Color.BLACK);
 				}
 				setSelected(value != null && (Boolean) value);
+				// 非対応形式（検出のみ）のファイルはチェックボックスを無効表示
+				TranslatableFile file = fileTableModel.getFileAtRow(row);
+				setEnabled(file == null || file.isTranslatable());
 				return this;
 			}
 		}

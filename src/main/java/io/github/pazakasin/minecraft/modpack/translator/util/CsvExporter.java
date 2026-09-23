@@ -71,7 +71,8 @@ public class CsvExporter {
             FileType.QUEST_LANG_FILE,
             FileType.OPENLOADER_LANG_FILE,
             FileType.KUBEJS_LANG_FILE,
-            FileType.MOD_LANG_FILE
+            FileType.MOD_LANG_FILE,
+            FileType.CONFIG_LANG_FILE
         };
         
         for (FileType type : order) {

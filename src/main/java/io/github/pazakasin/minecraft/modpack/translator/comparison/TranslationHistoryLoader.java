@@ -6,13 +6,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-
 import io.github.pazakasin.minecraft.modpack.translator.model.TranslatableFile;
 import io.github.pazakasin.minecraft.modpack.translator.service.callback.LogCallback;
 import io.github.pazakasin.minecraft.modpack.translator.service.callback.ProgressUpdateCallback;
+import io.github.pazakasin.minecraft.modpack.translator.service.processor.JsonLangFlattener;
 
 /**
  * loadフォルダから翻訳履歴を読み込むクラス。
@@ -24,6 +21,9 @@ public class TranslationHistoryLoader {
     
     /** 進捗コールバック */
     private final ProgressUpdateCallback progressUpdater;
+
+    /** JSON言語ファイルの展開クラス（翻訳時と同じ展開ルールで読み込むため）。 */
+    private final JsonLangFlattener flattener = new JsonLangFlattener();
     
     /**
      * コンストラクタ。
@@ -100,6 +100,9 @@ public class TranslationHistoryLoader {
 
             // config/openloader/resources配下のOpenLoader言語ファイルを読込
             loadOpenLoaderLanguageFiles(loadFolder, entries);
+
+            // config配下（openloader・ftbquests以外）のConfig（その他）言語ファイルを読込
+            loadConfigLanguageFiles(loadFolder, entries);
 
             // configs配下のQuestファイルを読込
             loadQuestFiles(loadFolder, entries);
@@ -294,6 +297,46 @@ public class TranslationHistoryLoader {
     }
 
     /**
+     * Config（その他）の言語ファイル（config配下の任意階層のlang/ja_jp.json）を読込。
+     * ConfigLangFileAnalyzerと同じく、個別対応済みのopenloader・ftbquestsフォルダは除外する。
+     *
+     * @param loadFolder loadフォルダ
+     * @param entries 結果を格納するリスト
+     * @throws Exception 読込エラー
+     */
+    private void loadConfigLanguageFiles(File loadFolder, List<TranslationHistoryEntry> entries)
+            throws Exception {
+        File[] children = new File(loadFolder, "config").listFiles();
+        if (children == null) {
+            return;
+        }
+
+        List<File> jaJpFiles = new ArrayList<File>();
+        for (File child : children) {
+            String name = child.getName().toLowerCase();
+            if (child.isDirectory() && !"openloader".equals(name) && !"ftbquests".equals(name)) {
+                findOpenLoaderJaJpFilesRecursive(child, jaJpFiles);
+            }
+        }
+
+        int count = 0;
+        for (File jaJpFile : jaJpFiles) {
+            Map<String, String> translations = loadJsonFile(jaJpFile);
+            if (!translations.isEmpty()) {
+                entries.add(new TranslationHistoryEntry(jaJpFile, translations));
+                count++;
+                if (logger != null) {
+                    logger.onLog("[デバッグ] Config（その他）言語ファイル読込: " + jaJpFile.getAbsolutePath() + " (" + translations.size() + "キー)");
+                }
+            }
+        }
+
+        if (logger != null && count > 0) {
+            logger.onLog("[隠し機能] Config（その他）言語ファイル: " + count + "件");
+        }
+    }
+
+    /**
      * Questファイル（configs/ftbquests/quests/）を読込。
      * 
      * @param loadFolder loadフォルダ
@@ -354,17 +397,9 @@ public class TranslationHistoryLoader {
                                     java.nio.charset.StandardCharsets.UTF_8);
         Map<String, String> result = new LinkedHashMap<String, String>();
         
+        // 翻訳時・比較時と同じ展開ルール（末尾カンマ除去、配列は「キー[番号]」）で読み込む
         try {
-            JsonElement element = JsonParser.parseString(content);
-            if (element.isJsonObject()) {
-                JsonObject jsonObject = element.getAsJsonObject();
-                for (String key : jsonObject.keySet()) {
-                    JsonElement value = jsonObject.get(key);
-                    if (value.isJsonPrimitive() && value.getAsJsonPrimitive().isString()) {
-                        result.put(key, value.getAsString());
-                    }
-                }
-            }
+            result = flattener.flatten(flattener.parse(content));
         } catch (Exception e) {
             if (logger != null) {
                 logger.onLog("[警告] JSON解析エラー: " + file.getName());
@@ -390,16 +425,7 @@ public class TranslationHistoryLoader {
         try {
             // JSON形式の場合
             if (content.trim().startsWith("{")) {
-                JsonElement element = JsonParser.parseString(content);
-                if (element.isJsonObject()) {
-                    JsonObject jsonObject = element.getAsJsonObject();
-                    for (String key : jsonObject.keySet()) {
-                        JsonElement value = jsonObject.get(key);
-                        if (value.isJsonPrimitive() && value.getAsJsonPrimitive().isString()) {
-                            result.put(key, value.getAsString());
-                        }
-                    }
-                }
+                result = flattener.flatten(flattener.parse(content));
             }
             // SNBTやその他の形式は、既にTranslatableFileの解析で処理済み
             // TODO: SNBT形式の場合の処理を追加

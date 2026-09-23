@@ -18,7 +18,10 @@ public enum FileType {
     KUBEJS_LANG_FILE("KubeJS言語ファイル"),
 
     /** OpenLoaderの言語ファイル（en_us.json） */
-    OPENLOADER_LANG_FILE("OpenLoader言語ファイル");
+    OPENLOADER_LANG_FILE("OpenLoader言語ファイル"),
+
+    /** config内のその他の言語ファイル（config配下の任意階層のlang/en_us.*。個別対応外のMOD独自配置） */
+    CONFIG_LANG_FILE("Config（その他）");
     
     /** ファイルタイプの表示名。UI表示用。 */
     private final String displayName;

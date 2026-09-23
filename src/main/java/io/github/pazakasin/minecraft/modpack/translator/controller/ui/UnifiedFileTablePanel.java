@@ -97,6 +97,11 @@ public class UnifiedFileTablePanel extends JPanel {
 				if (fileTableModel.isGroupHeaderRow(row)) {
 					return false;
 				}
+				// 非対応形式（検出のみ）のファイルは選択不可
+				TranslatableFile file = fileTableModel.getFileAtRow(row);
+				if (file != null && !file.isTranslatable()) {
+					return false;
+				}
 				return column == 0;
 			}
 		};

@@ -214,6 +214,7 @@ public class ComparisonHandler {
 		case KUBEJS_LANG_FILE:
 			return new File("output/kubejs/assets/" + file.getFileId() + "/lang/ja_jp.json");
 		case OPENLOADER_LANG_FILE:
+		case CONFIG_LANG_FILE:
 			File openLoaderRelative = new File(file.getLangFolderPath());
 			return new File(new File("output", openLoaderRelative.getParent()), "ja_jp.json");
 		case QUEST_LANG_FILE:
@@ -374,6 +375,18 @@ public class ComparisonHandler {
 			}
 			String openLoaderPattern = analyzedFile.getLangFolderPath().replace("en_us.json", "ja_jp.json");
 			return findByPattern(historyEntries, openLoaderPattern, debug);
+
+		case CONFIG_LANG_FILE:
+			// Config（その他）: 入力の相対パスのlangフォルダ内ja_jp.jsonでマッチング（非対応形式は対象外）
+			if (!analyzedFile.isTranslatable()) {
+				return null;
+			}
+			if (debug) {
+				logPanel.appendLog("  [デバッグ] CONFIG_LANG_FILEとしてマッチング試行");
+			}
+			String configPath = analyzedFile.getLangFolderPath();
+			String configPattern = configPath.substring(0, configPath.lastIndexOf('/') + 1) + "ja_jp.json";
+			return findByPattern(historyEntries, configPattern, debug);
 
 		case QUEST_LANG_FILE:
 			// Quest言語ファイル: /quests/lang/ja_jp.json または ja_jp.snbt

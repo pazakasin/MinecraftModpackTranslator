@@ -73,7 +73,8 @@ public class FileTableModel {
 			FileType.QUEST_LANG_FILE,
 			FileType.OPENLOADER_LANG_FILE,
 			FileType.KUBEJS_LANG_FILE,
-			FileType.MOD_LANG_FILE
+			FileType.MOD_LANG_FILE,
+			FileType.CONFIG_LANG_FILE
 		};
 		
 		// currentFilesを表示順（グループ化後の順序）で再構築
@@ -114,19 +115,21 @@ public class FileTableModel {
 					jaValue = file.isHasExistingJaJp() ? "○" : "×";
 				}
 				
+				// Config（その他）は初期状態で未選択、非対応形式は選択不可
+				boolean initialSelected = file.getFileType() != FileType.CONFIG_LANG_FILE;
+				file.setSelected(initialSelected);
+				
 				Object[] row = new Object[] {
-					true,
+					file.isSelected(),
 					file.getFileType().getDisplayName(),
 					file.getModName(),
 					file.getLangFolderPath(),
-					file.getCharacterCount(),
+					file.isTranslatable() ? (Object) file.getCharacterCount() : "-",
 					file.getFileContent() != null ? "○" : "×",
 					jaValue,
 					file.getResultMessage()
 				};
 				tableModel.addRow(row);
-				
-				file.setSelected(true);
 				dataIndex++;
 			}
 		}

@@ -75,9 +75,10 @@ public class ModPackProcessor {
 				translationService, logger, fileWriter);
 		KubeJSProcessor kubeJsProcessor = new KubeJSProcessor(translationService, logger);
 		OpenLoaderProcessor openLoaderProcessor = new OpenLoaderProcessor(translationService, logger);
+		OpenLoaderProcessor configLangProcessor = new OpenLoaderProcessor(translationService, logger, "Config");
 
 		this.selectiveHandler = new SelectiveTranslationHandler(logger, modLangHandler,
-				kubeJsProcessor, openLoaderProcessor, questProcessor, inputPath);
+				kubeJsProcessor, openLoaderProcessor, configLangProcessor, questProcessor, inputPath);
 		
 		this.backupManager = new BackupManager();
 		this.fileStateCallback = null;

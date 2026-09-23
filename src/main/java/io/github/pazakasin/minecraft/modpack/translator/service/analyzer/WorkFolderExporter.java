@@ -54,6 +54,13 @@ public class WorkFolderExporter {
                         exportOpenLoaderLangFile(file, workDir);
                         exportCount++;
                         break;
+                    case CONFIG_LANG_FILE:
+                        // 相対パス構造を保つ点はOpenLoaderと同じ。非対応形式はエクスポートしない
+                        if (file.isTranslatable()) {
+                            exportOpenLoaderLangFile(file, workDir);
+                            exportCount++;
+                        }
+                        break;
                     case QUEST_LANG_FILE:
                     case QUEST_FILE:
                         exportQuestFile(file, workDir);
@@ -113,8 +120,8 @@ public class WorkFolderExporter {
     }
     
     /**
-     * OpenLoader言語ファイルをエクスポートします。
-     * 入力ファイルの相対パス構造（config/openloader/resources/...）をworkフォルダ配下に
+     * OpenLoader言語ファイル（およびConfig（その他）の言語ファイル）をエクスポートします。
+     * 入力ファイルの相対パス構造（config/openloader/resources/...等）をworkフォルダ配下に
      * そのまま再現します（OpenLoaderProcessorの出力パス決定ロジックと同じ考え方）。
      * @param file 翻訳対象ファイル
      * @param workDir workディレクトリ

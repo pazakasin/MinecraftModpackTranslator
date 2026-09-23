@@ -63,6 +63,11 @@ public class FileTableActionHandler {
 				continue;
 			}
 			
+			TranslatableFile rowFile = fileTableModel.getFileAtRow(i);
+			if (rowFile != null && !rowFile.isTranslatable()) {
+				continue;
+			}
+			
 			tableModel.setValueAt(selected, i, 0);
 		}
 		
@@ -91,7 +96,7 @@ public class FileTableActionHandler {
 			}
 			
 			TranslatableFile file = fileTableModel.getFileAtRow(i);
-			if (file != null && file.getFileType() == type) {
+			if (file != null && file.getFileType() == type && file.isTranslatable()) {
 				tableModel.setValueAt(selected, i, 0);
 			}
 		}

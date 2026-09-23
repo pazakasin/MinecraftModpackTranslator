@@ -52,6 +52,9 @@ public class TranslatableFile {
     /** 翻訳処理の合計キー数。 */
     private int totalProgress;
     
+    /** 翻訳可能か（falseは非対応形式で検出のみ。選択・翻訳不可）。 */
+    private boolean translatable;
+
     /** 翻訳履歴エントリ（loadフォルダから読み込み）。 */
     private io.github.pazakasin.minecraft.modpack.translator.comparison.TranslationHistoryEntry historyEntry;
     
@@ -60,6 +63,7 @@ public class TranslatableFile {
      */
     public TranslatableFile() {
     this.selected = true;
+    this.translatable = true;
     this.processingState = ProcessingState.PENDING;
     this.resultMessage = ProcessingState.PENDING.getDisplayName();
     this.currentProgress = 0;
@@ -202,6 +206,55 @@ public class TranslatableFile {
     }
 
     /**
+     * Config（その他）の言語ファイル用のインスタンスを作成します（初期状態は未選択）。
+     * @param filePath ファイルパス
+     * @param relativePath ModPackルートからの相対パス（区切りは「/」）
+     * @param fileId 識別名（config配下のフォルダ名）
+     * @param characterCount 文字数
+     * @param hasExistingJaJp 既存の日本語ファイルの有無
+     * @param fileContent ファイル内容
+     * @param existingJaJpContent 既存の日本語ファイル内容
+     * @return TranslatableFile
+     */
+    public static TranslatableFile createConfigLangFile(String filePath, String relativePath,
+                                                        String fileId, int characterCount,
+                                                        boolean hasExistingJaJp, String fileContent,
+                                                        String existingJaJpContent) {
+        TranslatableFile file = new TranslatableFile();
+        file.fileType = FileType.CONFIG_LANG_FILE;
+        file.modName = fileId;
+        file.sourceFilePath = filePath;
+        file.langFolderPath = relativePath;
+        file.fileId = fileId;
+        file.characterCount = characterCount;
+        file.hasExistingJaJp = hasExistingJaJp;
+        file.fileContent = fileContent;
+        file.existingJaJpContent = existingJaJpContent;
+        file.selected = false;
+        return file;
+    }
+
+    /**
+     * Config（その他）の非対応形式ファイル用のインスタンスを作成します（検出のみ・選択不可）。
+     * @param filePath ファイルパス
+     * @param relativePath ModPackルートからの相対パス（区切りは「/」）
+     * @param fileId 識別名（config配下のフォルダ名）
+     * @param hasExistingJaJp 同形式の日本語ファイルの有無
+     * @param fileContent ファイル内容（読込不可の場合null）
+     * @param reason 非対応の理由（状態欄に表示）
+     * @return TranslatableFile
+     */
+    public static TranslatableFile createUnsupportedConfigLangFile(String filePath, String relativePath,
+                                                                   String fileId, boolean hasExistingJaJp,
+                                                                   String fileContent, String reason) {
+        TranslatableFile file = createConfigLangFile(filePath, relativePath, fileId, 0,
+                hasExistingJaJp, fileContent, null);
+        file.translatable = false;
+        file.resultMessage = reason;
+        return file;
+    }
+
+    /**
      * ファイルパスから相対パスを抽出します。
      */
     private static String extractRelativePath(String filePath) {
@@ -297,9 +350,21 @@ public class TranslatableFile {
     public boolean isSelected() {
         return selected;
     }
+
+    /**
+     * 翻訳可能かを取得します。
+     * @return falseの場合は非対応形式（検出のみ）
+     */
+    public boolean isTranslatable() {
+        return translatable;
+    }
     
+    /**
+     * 選択状態を設定します（翻訳不可のファイルは常に未選択）。
+     * @param selected 選択状態
+     */
     public void setSelected(boolean selected) {
-        this.selected = selected;
+        this.selected = selected && translatable;
     }
     
     public String getFileContent() {

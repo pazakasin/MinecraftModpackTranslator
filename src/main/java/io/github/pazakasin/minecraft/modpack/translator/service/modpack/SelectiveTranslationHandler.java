@@ -38,6 +38,9 @@ public class SelectiveTranslationHandler {
 	/** OpenLoader処理用プロセッサー。 */
 	private final OpenLoaderProcessor openLoaderProcessor;
 
+	/** Config（その他）処理用プロセッサー（OpenLoaderと同じ出力方式）。 */
+	private final OpenLoaderProcessor configLangProcessor;
+
 	/** クエストファイル処理用プロセッサー。 */
 	private final QuestFileProcessor questProcessor;
 	
@@ -50,16 +53,19 @@ public class SelectiveTranslationHandler {
 	 * @param modLangHandler Mod言語ファイルハンドラー
 	 * @param kubeJsProcessor KubeJSプロセッサー
 	 * @param openLoaderProcessor OpenLoaderプロセッサー
+	 * @param configLangProcessor Config（その他）プロセッサー
 	 * @param questProcessor クエストファイルプロセッサー
 	 * @param inputPath 入力パス
 	 */
 	public SelectiveTranslationHandler(LogCallback logger, ModLanguageFileHandler modLangHandler,
 			KubeJSProcessor kubeJsProcessor, OpenLoaderProcessor openLoaderProcessor,
+			OpenLoaderProcessor configLangProcessor,
 			QuestFileProcessor questProcessor, String inputPath) {
 		this.logger = logger;
 		this.modLangHandler = modLangHandler;
 		this.kubeJsProcessor = kubeJsProcessor;
 		this.openLoaderProcessor = openLoaderProcessor;
+		this.configLangProcessor = configLangProcessor;
 		this.questProcessor = questProcessor;
 		this.inputPath = inputPath;
 	}
@@ -73,6 +79,7 @@ public class SelectiveTranslationHandler {
 		modLangHandler.setFileStateCallback(callback);
 		kubeJsProcessor.setFileStateCallback(callback);
 		openLoaderProcessor.setFileStateCallback(callback);
+		configLangProcessor.setFileStateCallback(callback);
 	}
 	
 	/**
@@ -102,6 +109,12 @@ public class SelectiveTranslationHandler {
 		for (TranslatableFile file : selectedFiles) {
 			FileType fileType = file.getFileType();
 			
+			// 非対応形式（検出のみ）のファイルは処理しない（UI上は選択不可だが念のため）
+			if (!file.isTranslatable()) {
+				log("[スキップ] 非対応形式のため処理しません: " + file.getLangFolderPath());
+				continue;
+			}
+			
 			if (!typeHeaderPrinted.getOrDefault(fileType, false)) {
 				log("");
 				printTypeHeader(fileType);
@@ -121,6 +134,9 @@ public class SelectiveTranslationHandler {
 					break;
 				case OPENLOADER_LANG_FILE:
 					processOpenLoaderLangFile(file, currentIndex, totalCount, results);
+					break;
+				case CONFIG_LANG_FILE:
+					processConfigLangFile(file, currentIndex, totalCount, results);
 					break;
 				case QUEST_LANG_FILE:
 					processQuestLangFile(file, questResult);
@@ -202,6 +218,9 @@ public class SelectiveTranslationHandler {
 			case OPENLOADER_LANG_FILE:
 				log("=== OpenLoader言語ファイル翻訳 ===");
 				break;
+			case CONFIG_LANG_FILE:
+				log("=== Config（その他）言語ファイル翻訳 ===");
+				break;
 			case QUEST_LANG_FILE:
 				log("=== Quest言語ファイル翻訳 ===");
 				break;
@@ -263,6 +282,24 @@ public class SelectiveTranslationHandler {
 			openLoaderProcessor.processSingleFile(file, currentIndex, totalCount, results);
 		} catch (Exception e) {
 			log(String.format("[OpenLoader %d/%d][失敗] %s: %s",
+					currentIndex, totalCount, file.getFileId(), e.getMessage()));
+			logStackTrace(e);
+		}
+	}
+
+	/**
+	 * Config（その他）の言語ファイルを処理します。
+	 * @param file ファイル
+	 * @param currentIndex 現在のインデックス
+	 * @param totalCount 合計数
+	 * @param results 結果リスト
+	 */
+	private void processConfigLangFile(TranslatableFile file, int currentIndex, int totalCount,
+			List<ModProcessingResult> results) {
+		try {
+			configLangProcessor.processSingleFile(file, currentIndex, totalCount, results);
+		} catch (Exception e) {
+			log(String.format("[Config %d/%d][失敗] %s: %s",
 					currentIndex, totalCount, file.getFileId(), e.getMessage()));
 			logStackTrace(e);
 		}

@@ -152,6 +152,13 @@ public class AnalysisActionHandler {
 		JOptionPane.showMessageDialog(parentFrame,
 				"ファイル解析が完了しました。\n検出されたファイル数: " + files.size(),
 				"完了", JOptionPane.INFORMATION_MESSAGE);
+		
+		// Config（その他）の言語ファイルが存在する場合は別途通知
+		String configNotice = new ConfigLangNoticeBuilder().build(files);
+		if (configNotice != null) {
+			JOptionPane.showMessageDialog(parentFrame, configNotice,
+					"Config（その他）の言語ファイル", JOptionPane.WARNING_MESSAGE);
+		}
 	}
 	
 	/**

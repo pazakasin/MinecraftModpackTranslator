@@ -16,6 +16,7 @@ import io.github.pazakasin.minecraft.modpack.translator.service.callback.Progres
 /**
  * OpenLoader言語ファイルの処理を担当するクラス。
  * 既存ファイルのコピーまたは翻訳を実行し、入力の相対パス構造を保ったまま出力する。
+ * 出力方式が同じConfig（その他）の言語ファイルにも、表示ラベルを変えて使用する。
  */
 public class OpenLoaderProcessor {
 	/** 翻訳サービス。 */
@@ -27,14 +28,28 @@ public class OpenLoaderProcessor {
 	/** ファイル状態更新コールバック。 */
 	private FileStateUpdateCallback fileStateCallback;
 
+	/** ログ・結果表示用のラベル（例: OpenLoader、Config）。 */
+	private final String label;
+
 	/**
-	 * OpenLoaderProcessorのコンストラクタ。
+	 * OpenLoaderProcessorのコンストラクタ（ラベルは「OpenLoader」）。
 	 * @param translationService 翻訳サービス
 	 * @param logger ログコールバック
 	 */
 	public OpenLoaderProcessor(TranslationService translationService, LogCallback logger) {
+		this(translationService, logger, "OpenLoader");
+	}
+
+	/**
+	 * ラベルを指定するOpenLoaderProcessorのコンストラクタ。
+	 * @param translationService 翻訳サービス
+	 * @param logger ログコールバック
+	 * @param label ログ・結果表示用のラベル
+	 */
+	public OpenLoaderProcessor(TranslationService translationService, LogCallback logger, String label) {
 		this.translationService = translationService;
 		this.logger = logger;
+		this.label = label;
 	}
 
 	/**
@@ -56,7 +71,7 @@ public class OpenLoaderProcessor {
 	public void processSingleFile(TranslatableFile file, int currentNum, int totalFiles,
 			List<ModProcessingResult> results) throws Exception {
 		ModProcessingResult result = new ModProcessingResult();
-		result.modName = "OpenLoader - " + file.getFileId();
+		result.modName = label + " - " + file.getFileId();
 		result.langFolderPath = file.getLangFolderPath();
 		result.hasEnUs = true;
 		result.hasJaJp = file.isHasExistingJaJp();
@@ -71,8 +86,8 @@ public class OpenLoaderProcessor {
 				writeOpenLoaderLangFile(file, file.getExistingJaJpContent());
 				result.translationSuccess = true;
 
-				log(String.format("[OpenLoader %d/%d][既存] %s - 日本語ファイルをコピー",
-						currentNum, totalFiles, file.getFileId()));
+				log(String.format("[%s %d/%d][既存] %s - 日本語ファイルをコピー",
+						label, currentNum, totalFiles, file.getFileId()));
 			} else {
 				file.setProcessingState(ProcessingState.TRANSLATING);
 				file.setResultMessage(ProcessingState.TRANSLATING.getDisplayName());
@@ -89,8 +104,8 @@ public class OpenLoaderProcessor {
 				file.setResultMessage(ProcessingState.COMPLETED.getDisplayName());
 				updateFileState(file);
 
-				log(String.format("[OpenLoader %d/%d][翻訳] %s - 翻訳完了 (%d文字)",
-						currentNum, totalFiles, file.getFileId(), file.getCharacterCount()));
+				log(String.format("[%s %d/%d][翻訳] %s - 翻訳完了 (%d文字)",
+						label, currentNum, totalFiles, file.getFileId(), file.getCharacterCount()));
 
 				logProgress(" ");
 			}
@@ -103,8 +118,8 @@ public class OpenLoaderProcessor {
 			file.setResultMessage(ProcessingState.FAILED.getDisplayName() + ": " + e.getMessage());
 			updateFileState(file);
 
-			log(String.format("[OpenLoader %d/%d][失敗] %s: %s",
-					currentNum, totalFiles, file.getFileId(), e.getMessage()));
+			log(String.format("[%s %d/%d][失敗] %s: %s",
+					label, currentNum, totalFiles, file.getFileId(), e.getMessage()));
 			logStackTrace(e);
 
 			logProgress(" ");

@@ -1,7 +1,12 @@
 package io.github.pazakasin.minecraft.modpack.translator.service;
 
 import io.github.pazakasin.minecraft.modpack.translator.service.callback.ProgressCallback;
+import io.github.pazakasin.minecraft.modpack.translator.service.processor.JsonLangFlattener;
 import io.github.pazakasin.minecraft.modpack.translator.service.provider.*;
+
+import java.util.Map;
+
+import com.google.gson.JsonObject;
 
 /**
  * 翻訳サービスの統合管理クラス。
@@ -30,6 +35,9 @@ public class TranslationService {
     
     /** 現在アクティブな翻訳プロバイダーのインスタンス。 */
     private TranslationProvider currentProvider;
+
+    /** 配列等を含むJSONの展開・復元を行うクラス。 */
+    private final JsonLangFlattener flattener = new JsonLangFlattener();
     
     /**
      * TranslationServiceのデフォルトコンストラクタ。
@@ -145,7 +153,28 @@ public class TranslationService {
         // 正常なファイルの内容・翻訳結果には影響しない。
         String sanitizedContent = removeTrailingCommas(jsonContent);
 
-        return currentProvider.translateJsonFile(sanitizedContent, progressCallback);
+        // 【配列等を含むJSON対策】
+        // 各プロバイダーは「キー→文字列」の単純なJSONのみを想定しているため、
+        // 値に配列・数値・真偽値・入れ子オブジェクトを含む場合は、翻訳前に
+        // 文字列のみの形へ展開し、翻訳後に元の構造へ復元する。
+        // 値がすべて文字列の従来形式のファイルは、これまでどおりそのまま渡す。
+        JsonObject root;
+        try {
+            root = flattener.parse(sanitizedContent);
+        } catch (IllegalArgumentException e) {
+            // 解析できない場合は従来どおりプロバイダーに任せる（エラーはプロバイダー側で通知）
+            return currentProvider.translateJsonFile(sanitizedContent, progressCallback);
+        }
+        if (flattener.isSimple(root)) {
+            return currentProvider.translateJsonFile(sanitizedContent, progressCallback);
+        }
+
+        Map<String, String> flat = flattener.flatten(root);
+        if (flat.isEmpty()) {
+            return flattener.toJson(root);
+        }
+        String translatedFlat = currentProvider.translateJsonFile(flattener.toJson(flat), progressCallback);
+        return flattener.toJson(flattener.unflatten(root, flattener.readFlat(translatedFlat)));
     }
 
     /**

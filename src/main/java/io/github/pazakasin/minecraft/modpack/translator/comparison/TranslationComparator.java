@@ -14,6 +14,7 @@ import java.util.Set;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 
+import io.github.pazakasin.minecraft.modpack.translator.service.processor.JsonLangFlattener;
 import io.github.pazakasin.minecraft.modpack.translator.service.quest.LangFileSNBTExtractor;
 import io.github.pazakasin.minecraft.modpack.translator.service.quest.SNBTParser;
 import net.querz.nbt.tag.Tag;
@@ -32,6 +33,9 @@ public class TranslationComparator {
 	/** SNBT言語ファイルエクストラクター */
 	private final LangFileSNBTExtractor snbtExtractor;
 
+	/** JSON言語ファイルの展開クラス（翻訳時と同じ展開ルールで比較するため） */
+	private final JsonLangFlattener flattener;
+
 	/**
 	 * コンストラクタ
 	 */
@@ -39,6 +43,7 @@ public class TranslationComparator {
 		this.gson = new Gson();
 		this.snbtParser = new SNBTParser();
 		this.snbtExtractor = new LangFileSNBTExtractor();
+		this.flattener = new JsonLangFlattener();
 	}
 
 	/**
@@ -101,69 +106,15 @@ public class TranslationComparator {
 	private Map<String, String> loadJsonFile(File file) throws IOException, JsonSyntaxException {
 		String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
 
-		// 【JSONフォーマット誤り対策】
-		// 一部Modの言語ファイルには、オブジェクトの閉じ括弧の直前に不要な
-		// 末尾カンマ（トレイリングカンマ）が残っているものが存在し、そのままでは
-		// JsonReaderがExpected nameで解析エラーになる。TranslationServiceの
-		// 翻訳時サニタイズと同様に、比較表示時にもここで無害化する。
-		// 正しいJSONにはこのパターンは出現しないため、正常なファイルの内容には影響しない。
-		String sanitizedContent = removeTrailingCommas(content);
-
-		// 重複キーを許容するGsonを使用
-		com.google.gson.stream.JsonReader reader = new com.google.gson.stream.JsonReader(
-				new java.io.StringReader(sanitizedContent));
-		reader.setLenient(true);
-
-		Map<String, String> result = new LinkedHashMap<>();
-
+		// 【JSONフォーマット誤り対策・配列対応】
+		// 翻訳時と同じJsonLangFlattenerで解析する。末尾カンマ（トレイリングカンマ）は
+		// 解析前に無害化され、文字列の配列は「キー[番号]」の形で要素ごとに比較対象となる。
+		// 重複キーは最後の値が採用される。文字列以外の値は比較対象外。
 		try {
-			reader.beginObject();
-			while (reader.hasNext()) {
-				String key = reader.nextName();
-				String value = "";
-
-				// 次のトークンが文字列かどうかを確認
-				com.google.gson.stream.JsonToken token = reader.peek();
-				if (token == com.google.gson.stream.JsonToken.STRING) {
-					value = reader.nextString();
-				} else if (token == com.google.gson.stream.JsonToken.NULL) {
-					reader.nextNull();
-					value = "";
-				} else {
-					// その他の型はスキップ
-					reader.skipValue();
-					continue;
-				}
-
-				// 重複キーの場合は上書き（最後の値を使用）
-				result.put(key, value);
-			}
-			reader.endObject();
-		} catch (Exception e) {
+			return flattener.flatten(flattener.parse(content));
+		} catch (IllegalArgumentException e) {
 			throw new JsonSyntaxException("JSON解析エラー: " + e.getMessage(), e);
-		} finally {
-			reader.close();
 		}
-
-		return result;
-	}
-
-	/**
-	 * 【JSONフォーマット誤り対策】
-	 * JSON文字列から末尾カンマ（オブジェクト「}」または配列「]」の
-	 * 閉じ括弧の直前にある不要な「,」）を除去します。
-	 * 一部Modの言語ファイルに見られるJSONフォーマット誤り（トレイリングカンマ）に対する
-	 * 救済措置であり、正しいJSONにはこのパターンが出現しないため、
-	 * 正常なファイルの内容は変化しません。
-	 * @param jsonContent 元のJSON文字列
-	 * @return 末尾カンマを除去したJSON文字列（jsonContentがnullの場合はnull）
-	 */
-	private String removeTrailingCommas(String jsonContent) {
-		if (jsonContent == null) {
-			return null;
-		}
-
-		return jsonContent.replaceAll(",(\\s*[}\\]])", "$1");
 	}
 
 	/**
