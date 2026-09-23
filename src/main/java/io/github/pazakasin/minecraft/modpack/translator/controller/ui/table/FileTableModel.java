@@ -71,6 +71,7 @@ public class FileTableModel {
 		FileType[] order = {
 			FileType.QUEST_FILE,
 			FileType.QUEST_LANG_FILE,
+			FileType.OPENLOADER_LANG_FILE,
 			FileType.KUBEJS_LANG_FILE,
 			FileType.MOD_LANG_FILE
 		};

@@ -135,7 +135,34 @@ public class TranslationService {
         if (currentProvider == null) {
             throw new IllegalStateException("APIキーが設定されていません");
         }
-        
-        return currentProvider.translateJsonFile(jsonContent, progressCallback);
+
+        // 【JSONフォーマット誤り対策】
+        // 一部Modの言語ファイルには、オブジェクト/配列の閉じ括弧の直前に
+        // 不要な末尾カンマ（トレイリングカンマ）が残っているものが存在し、
+        // そのままGsonで解析するとMalformedJsonExceptionが発生する。
+        // 各プロバイダー（Google/DeepL/ChatGPT/Claude）に渡す前にここで一括して
+        // 無害化する。正しいJSONにはこのパターンは出現しないため、
+        // 正常なファイルの内容・翻訳結果には影響しない。
+        String sanitizedContent = removeTrailingCommas(jsonContent);
+
+        return currentProvider.translateJsonFile(sanitizedContent, progressCallback);
+    }
+
+    /**
+     * 【JSONフォーマット誤り対策】
+     * JSON文字列から末尾カンマ（オブジェクト「}」または配列「]」の
+     * 閉じ括弧の直前にある不要な「,」）を除去します。
+     * 一部Modの言語ファイルに見られるJSONフォーマット誤り（トレイリングカンマ）に対する
+     * 救済措置であり、正しいJSONにはこのパターンが出現しないため、
+     * 正常なファイルの内容は変化しません。
+     * @param jsonContent 元のJSON文字列
+     * @return 末尾カンマを除去したJSON文字列（jsonContentがnullの場合はnull）
+     */
+    private String removeTrailingCommas(String jsonContent) {
+        if (jsonContent == null) {
+            return null;
+        }
+
+        return jsonContent.replaceAll(",(\\s*[}\\]])", "$1");
     }
 }

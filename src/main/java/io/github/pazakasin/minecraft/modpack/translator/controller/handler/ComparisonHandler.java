@@ -213,6 +213,9 @@ public class ComparisonHandler {
 			return new File("output/resourcepacks/MyJPpack/assets/" + file.getFileId() + "/lang/ja_jp.json");
 		case KUBEJS_LANG_FILE:
 			return new File("output/kubejs/assets/" + file.getFileId() + "/lang/ja_jp.json");
+		case OPENLOADER_LANG_FILE:
+			File openLoaderRelative = new File(file.getLangFolderPath());
+			return new File(new File("output", openLoaderRelative.getParent()), "ja_jp.json");
 		case QUEST_LANG_FILE:
 			return new File("output", file.getLangFolderPath().replace("en_us.snbt", "ja_jp.snbt"));
 		case QUEST_FILE:
@@ -363,6 +366,14 @@ public class ComparisonHandler {
 				logPanel.appendLog("  [デバッグ] KUBEJS_LANG_FILEとしてマッチング試行");
 			}
 			return findByPattern(historyEntries, "/kubejs/assets/" + fileId + "/lang/ja_jp.json", debug);
+
+		case OPENLOADER_LANG_FILE:
+			// OpenLoader言語ファイル: 入力の相対パスのen_us.jsonをja_jp.jsonに置き換えたパターンでマッチング
+			if (debug) {
+				logPanel.appendLog("  [デバッグ] OPENLOADER_LANG_FILEとしてマッチング試行");
+			}
+			String openLoaderPattern = analyzedFile.getLangFolderPath().replace("en_us.json", "ja_jp.json");
+			return findByPattern(historyEntries, openLoaderPattern, debug);
 
 		case QUEST_LANG_FILE:
 			// Quest言語ファイル: /quests/lang/ja_jp.json または ja_jp.snbt

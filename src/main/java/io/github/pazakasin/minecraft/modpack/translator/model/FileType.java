@@ -15,7 +15,10 @@ public enum FileType {
     QUEST_FILE("Questファイル"),
     
     /** KubeJSの言語ファイル（en_us.json） */
-    KUBEJS_LANG_FILE("KubeJS言語ファイル");
+    KUBEJS_LANG_FILE("KubeJS言語ファイル"),
+
+    /** OpenLoaderの言語ファイル（en_us.json） */
+    OPENLOADER_LANG_FILE("OpenLoader言語ファイル");
     
     /** ファイルタイプの表示名。UI表示用。 */
     private final String displayName;

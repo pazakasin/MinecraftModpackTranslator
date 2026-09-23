@@ -14,6 +14,7 @@ import io.github.pazakasin.minecraft.modpack.translator.service.callback.Progres
 import io.github.pazakasin.minecraft.modpack.translator.service.modpack.KubeJSProcessor;
 import io.github.pazakasin.minecraft.modpack.translator.service.modpack.ModJarProcessor;
 import io.github.pazakasin.minecraft.modpack.translator.service.modpack.ModLanguageFileHandler;
+import io.github.pazakasin.minecraft.modpack.translator.service.modpack.OpenLoaderProcessor;
 import io.github.pazakasin.minecraft.modpack.translator.service.modpack.SelectiveTranslationHandler;
 import io.github.pazakasin.minecraft.modpack.translator.service.processor.LanguageFileWriter;
 import io.github.pazakasin.minecraft.modpack.translator.service.quest.QuestFileProcessor;
@@ -73,9 +74,10 @@ public class ModPackProcessor {
 		ModLanguageFileHandler modLangHandler = new ModLanguageFileHandler(
 				translationService, logger, fileWriter);
 		KubeJSProcessor kubeJsProcessor = new KubeJSProcessor(translationService, logger);
-		
+		OpenLoaderProcessor openLoaderProcessor = new OpenLoaderProcessor(translationService, logger);
+
 		this.selectiveHandler = new SelectiveTranslationHandler(logger, modLangHandler,
-				kubeJsProcessor, questProcessor, inputPath);
+				kubeJsProcessor, openLoaderProcessor, questProcessor, inputPath);
 		
 		this.backupManager = new BackupManager();
 		this.fileStateCallback = null;

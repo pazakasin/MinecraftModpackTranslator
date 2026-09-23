@@ -34,7 +34,10 @@ public class SelectiveTranslationHandler {
 	
 	/** KubeJS処理用プロセッサー。 */
 	private final KubeJSProcessor kubeJsProcessor;
-	
+
+	/** OpenLoader処理用プロセッサー。 */
+	private final OpenLoaderProcessor openLoaderProcessor;
+
 	/** クエストファイル処理用プロセッサー。 */
 	private final QuestFileProcessor questProcessor;
 	
@@ -46,14 +49,17 @@ public class SelectiveTranslationHandler {
 	 * @param logger ログコールバック
 	 * @param modLangHandler Mod言語ファイルハンドラー
 	 * @param kubeJsProcessor KubeJSプロセッサー
+	 * @param openLoaderProcessor OpenLoaderプロセッサー
 	 * @param questProcessor クエストファイルプロセッサー
 	 * @param inputPath 入力パス
 	 */
 	public SelectiveTranslationHandler(LogCallback logger, ModLanguageFileHandler modLangHandler,
-			KubeJSProcessor kubeJsProcessor, QuestFileProcessor questProcessor, String inputPath) {
+			KubeJSProcessor kubeJsProcessor, OpenLoaderProcessor openLoaderProcessor,
+			QuestFileProcessor questProcessor, String inputPath) {
 		this.logger = logger;
 		this.modLangHandler = modLangHandler;
 		this.kubeJsProcessor = kubeJsProcessor;
+		this.openLoaderProcessor = openLoaderProcessor;
 		this.questProcessor = questProcessor;
 		this.inputPath = inputPath;
 	}
@@ -66,6 +72,7 @@ public class SelectiveTranslationHandler {
 		this.fileStateCallback = callback;
 		modLangHandler.setFileStateCallback(callback);
 		kubeJsProcessor.setFileStateCallback(callback);
+		openLoaderProcessor.setFileStateCallback(callback);
 	}
 	
 	/**
@@ -111,6 +118,9 @@ public class SelectiveTranslationHandler {
 					break;
 				case KUBEJS_LANG_FILE:
 					processKubeJSLangFile(file, currentIndex, totalCount, results);
+					break;
+				case OPENLOADER_LANG_FILE:
+					processOpenLoaderLangFile(file, currentIndex, totalCount, results);
 					break;
 				case QUEST_LANG_FILE:
 					processQuestLangFile(file, questResult);
@@ -189,6 +199,9 @@ public class SelectiveTranslationHandler {
 			case KUBEJS_LANG_FILE:
 				log("=== KubeJS言語ファイル翻訳 ===");
 				break;
+			case OPENLOADER_LANG_FILE:
+				log("=== OpenLoader言語ファイル翻訳 ===");
+				break;
 			case QUEST_LANG_FILE:
 				log("=== Quest言語ファイル翻訳 ===");
 				break;
@@ -237,6 +250,24 @@ public class SelectiveTranslationHandler {
 		}
 	}
 	
+	/**
+	 * OpenLoader言語ファイルを処理します。
+	 * @param file ファイル
+	 * @param currentIndex 現在のインデックス
+	 * @param totalCount 合計数
+	 * @param results 結果リスト
+	 */
+	private void processOpenLoaderLangFile(TranslatableFile file, int currentIndex, int totalCount,
+			List<ModProcessingResult> results) {
+		try {
+			openLoaderProcessor.processSingleFile(file, currentIndex, totalCount, results);
+		} catch (Exception e) {
+			log(String.format("[OpenLoader %d/%d][失敗] %s: %s",
+					currentIndex, totalCount, file.getFileId(), e.getMessage()));
+			logStackTrace(e);
+		}
+	}
+
 	/**
 	 * クエスト言語ファイルを処理します。
 	 * @param file ファイル

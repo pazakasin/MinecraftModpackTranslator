@@ -50,6 +50,10 @@ public class WorkFolderExporter {
                         exportKubeJSLangFile(file, workDir);
                         exportCount++;
                         break;
+                    case OPENLOADER_LANG_FILE:
+                        exportOpenLoaderLangFile(file, workDir);
+                        exportCount++;
+                        break;
                     case QUEST_LANG_FILE:
                     case QUEST_FILE:
                         exportQuestFile(file, workDir);
@@ -108,6 +112,31 @@ public class WorkFolderExporter {
         }
     }
     
+    /**
+     * OpenLoader言語ファイルをエクスポートします。
+     * 入力ファイルの相対パス構造（config/openloader/resources/...）をworkフォルダ配下に
+     * そのまま再現します（OpenLoaderProcessorの出力パス決定ロジックと同じ考え方）。
+     * @param file 翻訳対象ファイル
+     * @param workDir workディレクトリ
+     * @throws Exception ファイルI/Oエラー
+     */
+    private void exportOpenLoaderLangFile(TranslatableFile file, File workDir) throws Exception {
+        File relativeSourceFile = new File(file.getLangFolderPath());
+        File outputDir = new File(workDir, relativeSourceFile.getParent());
+        outputDir.mkdirs();
+
+        File enUsFile = new File(outputDir, "en_us.json");
+        Files.write(enUsFile.toPath(), file.getFileContent().getBytes("UTF-8"));
+
+        if (file.isHasExistingJaJp() && file.getExistingJaJpContent() != null) {
+            File jaJpFile = new File(outputDir, "ja_jp.json");
+            Files.write(jaJpFile.toPath(), file.getExistingJaJpContent().getBytes("UTF-8"));
+            file.setWorkFilePath(jaJpFile.getAbsolutePath());
+        } else {
+            file.setWorkFilePath(enUsFile.getAbsolutePath());
+        }
+    }
+
     /**
      * クエストファイルをエクスポートします。
      * @param file 翻訳対象ファイル

@@ -101,9 +101,17 @@ public class TranslationComparator {
 	private Map<String, String> loadJsonFile(File file) throws IOException, JsonSyntaxException {
 		String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
 
+		// 【JSONフォーマット誤り対策】
+		// 一部Modの言語ファイルには、オブジェクトの閉じ括弧の直前に不要な
+		// 末尾カンマ（トレイリングカンマ）が残っているものが存在し、そのままでは
+		// JsonReaderがExpected nameで解析エラーになる。TranslationServiceの
+		// 翻訳時サニタイズと同様に、比較表示時にもここで無害化する。
+		// 正しいJSONにはこのパターンは出現しないため、正常なファイルの内容には影響しない。
+		String sanitizedContent = removeTrailingCommas(content);
+
 		// 重複キーを許容するGsonを使用
 		com.google.gson.stream.JsonReader reader = new com.google.gson.stream.JsonReader(
-				new java.io.StringReader(content));
+				new java.io.StringReader(sanitizedContent));
 		reader.setLenient(true);
 
 		Map<String, String> result = new LinkedHashMap<>();
@@ -138,6 +146,24 @@ public class TranslationComparator {
 		}
 
 		return result;
+	}
+
+	/**
+	 * 【JSONフォーマット誤り対策】
+	 * JSON文字列から末尾カンマ（オブジェクト「}」または配列「]」の
+	 * 閉じ括弧の直前にある不要な「,」）を除去します。
+	 * 一部Modの言語ファイルに見られるJSONフォーマット誤り（トレイリングカンマ）に対する
+	 * 救済措置であり、正しいJSONにはこのパターンが出現しないため、
+	 * 正常なファイルの内容は変化しません。
+	 * @param jsonContent 元のJSON文字列
+	 * @return 末尾カンマを除去したJSON文字列（jsonContentがnullの場合はnull）
+	 */
+	private String removeTrailingCommas(String jsonContent) {
+		if (jsonContent == null) {
+			return null;
+		}
+
+		return jsonContent.replaceAll(",(\\s*[}\\]])", "$1");
 	}
 
 	/**

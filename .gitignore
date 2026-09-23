@@ -32,3 +32,7 @@ translator_settings.properties
 /output/
 /output_backup/
 /load*/
+/count_lines.bat
+/count_lines.ps1
+/count_lines.py
+/line_count_result.txt

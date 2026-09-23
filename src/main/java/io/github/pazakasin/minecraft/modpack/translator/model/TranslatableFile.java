@@ -175,6 +175,33 @@ public class TranslatableFile {
     }
     
     /**
+     * OpenLoader言語ファイル用のインスタンスを作成します。
+     * @param filePath ファイルパス
+     * @param fileId namespace（ファイル識別子）
+     * @param characterCount 文字数
+     * @param hasExistingJaJp 既存の日本語ファイルの有無
+     * @param fileContent ファイル内容
+     * @param existingJaJpContent 既存の日本語ファイル内容
+     * @return TranslatableFile
+     */
+    public static TranslatableFile createOpenLoaderLangFile(String filePath, String fileId,
+                                                              int characterCount, boolean hasExistingJaJp,
+                                                              String fileContent, String existingJaJpContent) {
+        TranslatableFile file = new TranslatableFile();
+        file.fileType = FileType.OPENLOADER_LANG_FILE;
+        file.modName = fileId;
+        file.sourceFilePath = filePath;
+        file.langFolderPath = extractOpenLoaderRelativePath(filePath);
+        file.fileId = fileId;
+        file.characterCount = characterCount;
+        file.hasExistingJaJp = hasExistingJaJp;
+        file.fileContent = fileContent;
+        file.existingJaJpContent = existingJaJpContent;
+        file.selected = !hasExistingJaJp;
+        return file;
+    }
+
+    /**
      * ファイルパスから相対パスを抽出します。
      */
     private static String extractRelativePath(String filePath) {
@@ -198,10 +225,25 @@ public class TranslatableFile {
         if (kubeJsIndex != -1) {
             return path.substring(kubeJsIndex);
         }
-        
+
         return filePath;
     }
-    
+
+    /**
+     * OpenLoaderファイルパスから相対パスを抽出します。
+     * config/openloader/resources以降のパス（ファイル名含む）を返します。
+     */
+    private static String extractOpenLoaderRelativePath(String filePath) {
+        String path = filePath.replace("\\", "/");
+        int openLoaderIndex = path.indexOf("config/openloader/resources");
+
+        if (openLoaderIndex != -1) {
+            return path.substring(openLoaderIndex);
+        }
+
+        return filePath;
+    }
+
     // Getters and Setters
     
     public FileType getFileType() {

@@ -7,6 +7,7 @@ import io.github.pazakasin.minecraft.modpack.translator.service.analyzer.ModFile
 import io.github.pazakasin.minecraft.modpack.translator.service.analyzer.KubeJSFileAnalyzer;
 import io.github.pazakasin.minecraft.modpack.translator.service.analyzer.QuestFileAnalyzer;
 import io.github.pazakasin.minecraft.modpack.translator.service.analyzer.WorkFolderExporter;
+import io.github.pazakasin.minecraft.modpack.translator.service.analyzer.OpenLoaderFileAnalyzer;
 import io.github.pazakasin.minecraft.modpack.translator.service.backup.BackupManager;
 
 import java.io.File;
@@ -35,6 +36,9 @@ public class FileAnalysisService {
     
     /** workフォルダエクスポーター。 */
     private final WorkFolderExporter workExporter;
+
+    /** OpenLoaderファイルアナライザー。 */
+    private final OpenLoaderFileAnalyzer openLoaderAnalyzer;
     
     /** work/outputフォルダをクリアするかどうか。 */
     private boolean clearFolders = true;
@@ -57,6 +61,7 @@ public class FileAnalysisService {
         this.kubeJsAnalyzer = new KubeJSFileAnalyzer(logger, progressUpdater);
         this.questAnalyzer = new QuestFileAnalyzer(logger, progressUpdater);
         this.workExporter = new WorkFolderExporter(logger);
+        this.openLoaderAnalyzer = new OpenLoaderFileAnalyzer(logger, progressUpdater);
     }
     
     /**
@@ -107,7 +112,10 @@ public class FileAnalysisService {
         
         List<TranslatableFile> modFiles = modAnalyzer.analyze(inputPath);
         files.addAll(modFiles);
-        
+
+        List<TranslatableFile> openLoaderFiles = openLoaderAnalyzer.analyze(inputPath);
+        files.addAll(openLoaderFiles);
+
         if (exportWork) {
             workExporter.export(files);
         }

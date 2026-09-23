@@ -97,7 +97,10 @@ public class TranslationHistoryLoader {
             
             // kubejs配下のKubeJS言語ファイルを読込
             loadKubeJSLanguageFiles(loadFolder, entries);
-            
+
+            // config/openloader/resources配下のOpenLoader言語ファイルを読込
+            loadOpenLoaderLanguageFiles(loadFolder, entries);
+
             // configs配下のQuestファイルを読込
             loadQuestFiles(loadFolder, entries);
             
@@ -219,7 +222,77 @@ public class TranslationHistoryLoader {
             logger.onLog("[隠し機能] KubeJS言語ファイル: " + count + "件");
         }
     }
-    
+
+    /**
+     * OpenLoader言語ファイル（config/openloader/resources配下の任意階層のlang/ja_jp.json）を読込。
+     * KubeJSと異なり配置階層が固定（assets/id/lang）ではなく可変であるため、
+     * OpenLoaderFileAnalyzerの探索ロジックと同様に再帰的にja_jp.jsonを探す。
+     *
+     * @param loadFolder loadフォルダ
+     * @param entries 結果を格納するリスト
+     * @throws Exception 読込エラー
+     */
+    private void loadOpenLoaderLanguageFiles(File loadFolder, List<TranslationHistoryEntry> entries)
+            throws Exception {
+        File openLoaderResourcesFolder = new File(loadFolder, "config/openloader/resources");
+        if (!openLoaderResourcesFolder.exists() || !openLoaderResourcesFolder.isDirectory()) {
+            if (logger != null) {
+                logger.onLog("[デバッグ] config/openloader/resources が見つかりません");
+            }
+            return;
+        }
+
+        if (logger != null) {
+            logger.onLog("[デバッグ] config/openloader/resources を発見: " + openLoaderResourcesFolder.getAbsolutePath());
+        }
+
+        List<File> jaJpFiles = new ArrayList<File>();
+        findOpenLoaderJaJpFilesRecursive(openLoaderResourcesFolder, jaJpFiles);
+
+        int count = 0;
+        for (File jaJpFile : jaJpFiles) {
+            Map<String, String> translations = loadJsonFile(jaJpFile);
+            if (!translations.isEmpty()) {
+                entries.add(new TranslationHistoryEntry(jaJpFile, translations));
+                count++;
+                if (logger != null) {
+                    logger.onLog("[デバッグ] OpenLoader言語ファイル読込: " + jaJpFile.getAbsolutePath() + " (" + translations.size() + "キー)");
+                }
+            }
+        }
+
+        if (logger != null && count > 0) {
+            logger.onLog("[隠し機能] OpenLoader言語ファイル: " + count + "件");
+        }
+    }
+
+    /**
+     * config/openloader/resources配下を再帰的に探索し、
+     * 「.../lang/ja_jp.json」に該当するファイルを収集します。
+     * 配置階層がMod・KubeJSのように固定でないため、OpenLoaderFileAnalyzerの
+     * en_us.json探索と同じ考え方で再帰的に走査します。
+     *
+     * @param folder 探索対象フォルダ
+     * @param result 見つかったja_jp.jsonファイルを格納するリスト
+     */
+    private void findOpenLoaderJaJpFilesRecursive(File folder, List<File> result) {
+        File[] files = folder.listFiles();
+        if (files == null) {
+            return;
+        }
+
+        for (File file : files) {
+            if (file.isDirectory()) {
+                findOpenLoaderJaJpFilesRecursive(file, result);
+            } else if ("ja_jp.json".equals(file.getName())) {
+                String normalizedPath = file.getAbsolutePath().replace("\\", "/");
+                if (normalizedPath.contains("/lang/ja_jp.json")) {
+                    result.add(file);
+                }
+            }
+        }
+    }
+
     /**
      * Questファイル（configs/ftbquests/quests/）を読込。
      * 
