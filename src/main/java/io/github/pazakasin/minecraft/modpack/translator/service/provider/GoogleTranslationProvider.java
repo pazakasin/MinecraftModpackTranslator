@@ -102,12 +102,12 @@ public class GoogleTranslationProvider implements TranslationProvider {
     private List<String> translateBatch(List<String> texts) throws Exception {
         // デバッグモード時はダミーデータを返す
         if (debugMode) {
-        Thread.sleep(200); // API呼び出しをシミュレート
-        List<String> result = new ArrayList<>();
-        for (String text : texts) {
-        result.add("[デバッグ] " + text);
-        }
-        return result;
+            Thread.sleep(200);
+            List<String> result = new ArrayList<>();
+            for (String text : texts) {
+                result.add(applyDebugPrefix(text));
+            }
+            return result;
         }
         String urlStr = "https://translation.googleapis.com/language/translate/v2?key=" + apiKey;
         URL url = new URL(urlStr);
@@ -157,6 +157,33 @@ public class GoogleTranslationProvider implements TranslationProvider {
         }
     }
     
+    /**
+     * デバッグモード用のプレフィックスを適用します。
+     * 改行を含むテキストの場合、各行（空行を除く）にプレフィックスを付けます。
+     * @param text 元のテキスト
+     * @return プレフィックス付きテキスト
+     */
+    private String applyDebugPrefix(String text) {
+        if (!text.contains("\n")) {
+            return "[デバッグ] " + text;
+        }
+        
+        String[] lines = text.split("\n", -1);
+        StringBuilder result = new StringBuilder();
+        
+        for (int i = 0; i < lines.length; i++) {
+            if (i > 0) {
+                result.append("\n");
+            }
+            
+            if (!lines[i].isEmpty()) {
+                result.append("[デバッグ] ").append(lines[i]);
+            }
+        }
+        
+        return result.toString();
+    }
+    
     /** HTTPレスポンスを文字列として読み込みます。 */
     private String readInputStream(HttpURLConnection conn) throws IOException {
         try (BufferedReader br = new BufferedReader(
@@ -198,16 +225,12 @@ public class GoogleTranslationProvider implements TranslationProvider {
      * @param e 例外オブジェクト
      */
     private void logApiError(List<String> texts, Exception e) {
-        System.err.println("[Google Translation API エラー] " + e.getMessage());
-        System.err.println("処理中のデータ (最初の3エントリー):");
-        for (int i = 0; i < Math.min(3, texts.size()); i++) {
-            String text = texts.get(i);
-            System.err.println(String.format("  [%d]: %s", i + 1, 
-                text.length() > 100 ? text.substring(0, 100) + "..." : text));
+        System.err.println("=== Google Translation API Error ===");
+        System.err.println("Texts being processed:");
+        for (int i = 0; i < texts.size(); i++) {
+            System.err.println("  [" + i + "]: " + texts.get(i));
         }
-        if (texts.size() > 3) {
-            System.err.println(String.format("  ... 他 %d エントリー", texts.size() - 3));
-        }
+        System.err.println("Error: " + e.getMessage());
         e.printStackTrace();
     }
 }

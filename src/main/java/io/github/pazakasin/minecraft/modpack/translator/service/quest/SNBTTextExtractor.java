@@ -40,6 +40,17 @@ public class SNBTTextExtractor {
             }
         });
         
+        // デバッグ出力
+        System.out.println("=== DEBUG: Extracted Matches ===");
+        for (int i = 0; i < matches.size(); i++) {
+            TextMatch m = matches.get(i);
+            String preview = m.value.length() > 100 ? m.value.substring(0, 100) + "..." : m.value;
+            System.out.println(String.format("[%d] key=%s, isArray=%s, start=%d, end=%d", 
+                i, m.key, m.isArray, m.start, m.end));
+            System.out.println("    value: " + preview.replace("\n", "\\n"));
+        }
+        System.out.println("================================");
+        
         return buildUniqueKeyMap(matches);
     }
     
@@ -104,24 +115,99 @@ public class SNBTTextExtractor {
     
     /**
      * 配列内の要素を抽出して結合します。
+     * トップレベルの要素のみを抽出し、ネストされた引用符は無視します。
      */
     private String extractArrayElements(String arrayContent) {
         StringBuilder combined = new StringBuilder();
-        Pattern elementPattern = Pattern.compile("\"([^\"\\\\]*(\\\\.[^\"\\\\]*)*)\"");
-        Matcher elementMatcher = elementPattern.matcher(arrayContent);
+        List<String> elements = parseArrayElements(arrayContent);
         
-        while (elementMatcher.find()) {
-            String element = SNBTStringHelper.unescapeSnbtString(elementMatcher.group(1));
+        System.out.println("  DEBUG: Array has " + elements.size() + " elements");
+        for (int i = 0; i < elements.size(); i++) {
+            String preview = elements.get(i).length() > 80 ? elements.get(i).substring(0, 80) + "..." : elements.get(i);
+            System.out.println("    [" + i + "]: " + preview.replace("\n", "\\n"));
+        }
+        
+        for (String element : elements) {
+            String unescaped = SNBTStringHelper.unescapeSnbtString(element);
             
-            if (!element.trim().isEmpty() && !SNBTStringHelper.isVariableReference(element)) {
+            if (!unescaped.trim().isEmpty() && !SNBTStringHelper.isVariableReference(unescaped)) {
                 if (combined.length() > 0) {
                     combined.append("\n");
                 }
-                combined.append(element);
+                combined.append(unescaped);
             }
         }
         
         return combined.toString();
+    }
+    
+    /**
+     * 配列内の要素をパースします。
+     * トップレベルの文字列のみを抽出し、ネストされた引用符は無視します。
+     * @param arrayContent 配列の内容
+     * @return 要素のリスト
+     */
+    private List<String> parseArrayElements(String arrayContent) {
+        List<String> elements = new ArrayList<String>();
+        int i = 0;
+        
+        while (i < arrayContent.length()) {
+            char c = arrayContent.charAt(i);
+            
+            // 空白とカンマをスキップ
+            if (Character.isWhitespace(c) || c == ',') {
+                i++;
+                continue;
+            }
+            
+            // 文字列要素の開始
+            if (c == '"') {
+                int start = i + 1;
+                int end = findStringEnd(arrayContent, start);
+                
+                if (end != -1) {
+                    elements.add(arrayContent.substring(start, end));
+                    i = end + 1;
+                } else {
+                    i++;
+                }
+            } else {
+                i++;
+            }
+        }
+        
+        return elements;
+    }
+    
+    /**
+     * 文字列の終端位置を見つけます。
+     * エスケープされた引用符を考慮します。
+     * @param content コンテンツ
+     * @param start 検索開始位置（最初の'"'の次の位置）
+     * @return 文字列を閉じる'"'の位置、見つからない場合は-1
+     */
+    private int findStringEnd(String content, int start) {
+        boolean escaped = false;
+        
+        for (int i = start; i < content.length(); i++) {
+            char c = content.charAt(i);
+            
+            if (escaped) {
+                escaped = false;
+                continue;
+            }
+            
+            if (c == '\\') {
+                escaped = true;
+                continue;
+            }
+            
+            if (c == '"') {
+                return i;
+            }
+        }
+        
+        return -1;
     }
     
     /**
@@ -137,6 +223,13 @@ public class SNBTTextExtractor {
             texts.put(uniqueKey, match.value);
             keyCounters.put(match.key, counter + 1);
         }
+        
+        System.out.println("=== DEBUG: Final Key Map ===");
+        for (Map.Entry<String, String> entry : texts.entrySet()) {
+            String preview = entry.getValue().length() > 100 ? entry.getValue().substring(0, 100) + "..." : entry.getValue();
+            System.out.println(entry.getKey() + ": " + preview.replace("\n", "\\n"));
+        }
+        System.out.println("============================");
         
         return texts;
     }

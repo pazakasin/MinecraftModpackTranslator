@@ -83,6 +83,7 @@ public class SNBTParser {
     /**
      * FTB Quests形式のSNBTを標準形式に変換します（Lang File用）。
      * FTB Questsはカンマ区切りを省略しているため、パース前に追加。
+     * エスケープされた引用符を考慮した処理を行う。
      * @param content 元のSNBT文字列
      * @return 標準形式に変換されたSNBT文字列
      */
@@ -99,15 +100,25 @@ public class SNBTParser {
     
     /**
      * カンマ追加処理を1回実行します（Lang File用）。
+     * エスケープされた引用符（\"）を考慮し、文字列の終端を正しく認識します。
      * @param content 処理対象の文字列
      * @return 処理後の文字列
      */
     private String applySinglePass(String content) {
+        // エスケープされた引用符を一時的にプレースホルダーに置換
+        String placeholder = "\u0000ESCAPED_QUOTE\u0000";
+        content = content.replace("\\\"", placeholder);
+        
+        // カンマ追加処理（元の処理）
         content = content.replaceAll("\"(\\s*[\\r\\n]+\\s*)([a-zA-Z_0-9\"\\}\\]])", "\",$1$2");
         content = content.replaceAll("\\](\\s*[\\r\\n]+\\s*)([a-zA-Z_0-9\\{\"\\}\\]])", "],$1$2");
         content = content.replaceAll("\\}(\\s*[\\r\\n]+\\s*)([a-zA-Z_0-9\\{\"\\}\\]])", "},$1$2");
         content = content.replaceAll("(true|false)(\\s*[\\r\\n]+\\s*)([a-zA-Z_0-9\\}\\]])", "$1,$2$3");
         content = content.replaceAll("([-+]?[0-9]+\\.?[0-9]*([eE][-+]?[0-9]+)?[dDfFlLbBsS]?)(\\s*[\\r\\n]+\\s*)([a-zA-Z_0-9\"\\}\\]])", "$1,$3$4");
+        
+        // プレースホルダーを元に戻す
+        content = content.replace(placeholder, "\\\"");
+        
         return content;
     }
 

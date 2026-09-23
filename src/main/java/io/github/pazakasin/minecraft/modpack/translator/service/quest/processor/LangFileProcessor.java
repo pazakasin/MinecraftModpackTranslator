@@ -149,38 +149,100 @@ public class LangFileProcessor {
 						escapeSnbtString(translatedValue) + "\"";
 				content = stringMatcher.replaceFirst(Matcher.quoteReplacement(replacement));
 			} else {
-				Pattern arrayPattern = Pattern.compile(
-						"(" + key + ":\\s*\\[)([^\\]]*)(\\])",
-						Pattern.DOTALL);
-				Matcher arrayMatcher = arrayPattern.matcher(content);
-				
-				if (arrayMatcher.find()) {
-					String prefix = arrayMatcher.group(1);
-					String originalArray = arrayMatcher.group(2);
-					String suffix = arrayMatcher.group(3);
-					
-					String indent = extractIndent(originalArray);
-					String[] lines = translatedValue.split("\n");
-					
-					StringBuilder newArray = new StringBuilder();
-					for (int i = 0; i < lines.length; i++) {
-						newArray.append("\n").append(indent);
-						newArray.append("\"").append(escapeSnbtString(lines[i])).append("\"");
+				int arrayStart = findArrayStart(content, entry.getKey());
+				if (arrayStart != -1) {
+					int arrayEnd = findMatchingBracket(content, arrayStart);
+					if (arrayEnd != -1) {
+						String beforeArray = content.substring(0, arrayStart);
+						String afterArray = content.substring(arrayEnd + 1);
+						String originalArray = content.substring(arrayStart + 1, arrayEnd);
+						
+						String indent = extractIndent(originalArray);
+						String[] lines = translatedValue.split("\n");
+						
+						StringBuilder newArray = new StringBuilder();
+						newArray.append("[");
+						for (int i = 0; i < lines.length; i++) {
+							newArray.append("\n").append(indent);
+							newArray.append("\"").append(escapeSnbtString(lines[i])).append("\"");
+						}
+						if (lines.length > 0) {
+							String baseIndent = indent.length() > 0 && indent.charAt(indent.length() - 1) == '\t'
+									? indent.substring(0, indent.length() - 1)
+									: indent;
+							newArray.append("\n").append(baseIndent);
+						}
+						newArray.append("]");
+						
+						content = beforeArray + newArray.toString() + afterArray;
 					}
-					if (lines.length > 0) {
-						String baseIndent = indent.length() > 0 && indent.charAt(indent.length() - 1) == '\t'
-								? indent.substring(0, indent.length() - 1)
-								: indent;
-						newArray.append("\n").append(baseIndent);
-					}
-					
-					String replacement = prefix + newArray.toString() + suffix;
-					content = arrayMatcher.replaceFirst(Matcher.quoteReplacement(replacement));
 				}
 			}
 		}
 		
 		Files.writeString(targetFile.toPath(), content, StandardCharsets.UTF_8);
+	}
+	
+	/**
+	 * 指定されたキーの配列開始位置を見つけます。
+	 * @param content コンテンツ
+	 * @param key キー名
+	 * @return 配列の'['の位置、見つからない場合は-1
+	 */
+	private int findArrayStart(String content, String key) {
+		Pattern pattern = Pattern.compile(escapeRegex(key) + ":\\s*\\[");
+		Matcher matcher = pattern.matcher(content);
+		if (matcher.find()) {
+			return matcher.end() - 1;
+		}
+		return -1;
+	}
+	
+	/**
+	 * 配列の開始位置から対応する閉じ括弧を見つけます。
+	 * 括弧のネストと文字列内の括弧を考慮します。
+	 * @param content コンテンツ
+	 * @param start 開始位置（'['の位置）
+	 * @return 対応する']'の位置、見つからない場合は-1
+	 */
+	private int findMatchingBracket(String content, int start) {
+		int depth = 1;
+		boolean inString = false;
+		boolean escaped = false;
+		
+		for (int i = start + 1; i < content.length(); i++) {
+			char c = content.charAt(i);
+			
+			if (escaped) {
+				escaped = false;
+				continue;
+			}
+			
+			if (c == '\\') {
+				escaped = true;
+				continue;
+			}
+			
+			if (c == '"') {
+				inString = !inString;
+				continue;
+			}
+			
+			if (inString) {
+				continue;
+			}
+			
+			if (c == '[') {
+				depth++;
+			} else if (c == ']') {
+				depth--;
+				if (depth == 0) {
+					return i;
+				}
+			}
+		}
+		
+		return -1;
 	}
 	
 	/**

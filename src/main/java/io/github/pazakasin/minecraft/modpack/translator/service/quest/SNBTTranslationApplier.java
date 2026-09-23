@@ -8,8 +8,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -42,8 +44,21 @@ public class SNBTTranslationApplier {
     private List<TextMatch> collectMatches(String content) {
         List<TextMatch> matches = new ArrayList<TextMatch>();
         
-        collectStringMatches(content, matches);
-        collectArrayMatches(content, matches);
+        // まず配列をマッチ
+        List<TextMatch> arrayMatches = new ArrayList<TextMatch>();
+        collectArrayMatches(content, arrayMatches);
+        
+        // 配列の範囲を記録
+        Set<Range> arrayRanges = new HashSet<Range>();
+        for (TextMatch match : arrayMatches) {
+            arrayRanges.add(new Range(match.start, match.end));
+        }
+        
+        // 配列外の文字列をマッチ
+        collectStringMatches(content, matches, arrayRanges);
+        
+        // 配列を追加
+        matches.addAll(arrayMatches);
         
         Collections.sort(matches, new Comparator<TextMatch>() {
             @Override
@@ -57,8 +72,9 @@ public class SNBTTranslationApplier {
     
     /**
      * 文字列値のマッチを収集します。
+     * 配列内の要素は除外します。
      */
-    private void collectStringMatches(String content, List<TextMatch> matches) {
+    private void collectStringMatches(String content, List<TextMatch> matches, Set<Range> arrayRanges) {
         Pattern stringPattern = Pattern.compile(
             "([a-zA-Z_][a-zA-Z_0-9]*):\\s*\"([^\"\\\\]*(\\\\.[^\"\\\\]*)*)\"");
         Matcher stringMatcher = stringPattern.matcher(content);
@@ -67,12 +83,30 @@ public class SNBTTranslationApplier {
             String key = stringMatcher.group(1);
             String stringValue = stringMatcher.group(2);
             
-            if (SNBTStringHelper.isTranslatableKey(key) && stringValue.length() > 0) {
-                String unescaped = SNBTStringHelper.unescapeSnbtString(stringValue);
-                if (!SNBTStringHelper.isVariableReference(unescaped)) {
-                    matches.add(new TextMatch(key, stringValue, 
-                        stringMatcher.start(), stringMatcher.end(), false));
+            if (!SNBTStringHelper.isTranslatableKey(key) || stringValue.length() == 0) {
+                continue;
+            }
+            
+            // 配列内の要素かチェック
+            int matchStart = stringMatcher.start();
+            int matchEnd = stringMatcher.end();
+            boolean inArray = false;
+            
+            for (Range range : arrayRanges) {
+                if (matchStart >= range.start && matchEnd <= range.end) {
+                    inArray = true;
+                    break;
                 }
+            }
+            
+            if (inArray) {
+                continue;
+            }
+            
+            String unescaped = SNBTStringHelper.unescapeSnbtString(stringValue);
+            if (!SNBTStringHelper.isVariableReference(unescaped)) {
+                matches.add(new TextMatch(key, stringValue, 
+                    matchStart, matchEnd, false));
             }
         }
     }
@@ -116,12 +150,11 @@ public class SNBTTranslationApplier {
      * 配列内に翻訳対象要素があるか判定します。
      */
     private boolean hasTranslatableElement(String arrayContent) {
-        Pattern elementPattern = Pattern.compile("\"([^\"\\\\]*(\\\\.[^\"\\\\]*)*)\"");
-        Matcher elementMatcher = elementPattern.matcher(arrayContent);
+        List<String> elements = extractArrayElements(arrayContent);
         
-        while (elementMatcher.find()) {
-            String element = SNBTStringHelper.unescapeSnbtString(elementMatcher.group(1));
-            if (!SNBTStringHelper.isVariableReference(element)) {
+        for (String element : elements) {
+            String unescaped = SNBTStringHelper.unescapeSnbtString(element);
+            if (!SNBTStringHelper.isVariableReference(unescaped)) {
                 return true;
             }
         }
@@ -176,7 +209,7 @@ public class SNBTTranslationApplier {
         String arrayContent = content.substring(arrayStart + 1, arrayEnd);
         String indent = SNBTStringHelper.extractIndent(arrayContent);
         
-        List<String> originalElements = extractOriginalElements(arrayContent);
+        List<String> originalElements = extractArrayElements(arrayContent);
         String[] translatedLines = translatedValue.split("\n");
         List<String> mergedElements = mergeElements(originalElements, translatedLines);
         
@@ -186,17 +219,69 @@ public class SNBTTranslationApplier {
     
     /**
      * 配列から元の要素を抽出します。
+     * トップレベルの要素のみを抽出し、ネストされた引用符は無視します。
      */
-    private List<String> extractOriginalElements(String arrayContent) {
+    private List<String> extractArrayElements(String arrayContent) {
         List<String> elements = new ArrayList<String>();
-        Pattern elementPattern = Pattern.compile("\"([^\"\\\\]*(\\\\.[^\"\\\\]*)*)\"");
-        Matcher elementMatcher = elementPattern.matcher(arrayContent);
+        int i = 0;
         
-        while (elementMatcher.find()) {
-            elements.add(elementMatcher.group(1));
+        while (i < arrayContent.length()) {
+            char c = arrayContent.charAt(i);
+            
+            // 空白をスキップ
+            if (Character.isWhitespace(c) || c == ',') {
+                i++;
+                continue;
+            }
+            
+            // 文字列要素の開始
+            if (c == '"') {
+                int start = i + 1;
+                int end = findStringEnd(arrayContent, start);
+                
+                if (end != -1) {
+                    elements.add(arrayContent.substring(start, end));
+                    i = end + 1;
+                } else {
+                    i++;
+                }
+            } else {
+                i++;
+            }
         }
         
         return elements;
+    }
+    
+    /**
+     * 文字列の終端位置を見つけます。
+     * エスケープされた引用符を考慮します。
+     * @param content コンテンツ
+     * @param start 検索開始位置（最初の'"'の次の位置）
+     * @return 文字列を閉じる'"'の位置、見つからない場合は-1
+     */
+    private int findStringEnd(String content, int start) {
+        boolean escaped = false;
+        
+        for (int i = start; i < content.length(); i++) {
+            char c = content.charAt(i);
+            
+            if (escaped) {
+                escaped = false;
+                continue;
+            }
+            
+            if (c == '\\') {
+                escaped = true;
+                continue;
+            }
+            
+            if (c == '"') {
+                return i;
+            }
+        }
+        
+        return -1;
     }
     
     /**
@@ -263,5 +348,31 @@ public class SNBTTranslationApplier {
         }
         
         return result.toString();
+    }
+    
+    /**
+     * 範囲を表すヘルパークラス。
+     */
+    private static class Range {
+        int start;
+        int end;
+        
+        Range(int start, int end) {
+            this.start = start;
+            this.end = end;
+        }
+        
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            Range range = (Range) o;
+            return start == range.start && end == range.end;
+        }
+        
+        @Override
+        public int hashCode() {
+            return 31 * start + end;
+        }
     }
 }
