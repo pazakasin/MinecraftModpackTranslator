@@ -1,6 +1,10 @@
 package io.github.pazakasin.minecraft.modpack.translator.service.quest;
 
+import java.util.Map;
 import java.util.regex.Pattern;
+
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 
 /**
  * SNBT文字列処理のユーティリティクラス。
@@ -24,6 +28,7 @@ public class SNBTStringHelper {
      * 以下のパターンに該当する場合は変数参照と見なして翻訳対象から除外:
      * 1. ドット区切り参照(3セグメント以上): ftb.shop.notification.guidance
      * 2. 波括弧で囲まれた参照: {.advanced_tech.quests30.title}
+     * 3. 言語キー参照のみのJSONテキスト: ["",{"translate":"ftbquests.xxx","color":"yellow"}]
      * @param value 判定対象の値
      * @return 変数参照の場合true
      */
@@ -47,7 +52,64 @@ public class SNBTStringHelper {
             return true;
         }
         
+        if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+            return isTranslateOnlyTextComponent(trimmed);
+        }
+        
         return false;
+    }
+    
+    /**
+     * JSONテキストコンポーネントが言語キー参照（translate）のみで、表示する文章を持たないかを判定します。
+     * 解析できない場合は通常の文章として扱います（false）。
+     * @param json 判定対象のJSON文字列
+     * @return translateを含み、文章（text・contents・文字列要素）を持たない場合true
+     */
+    private static boolean isTranslateOnlyTextComponent(String json) {
+        JsonElement root;
+        try {
+            root = JsonParser.parseString(json);
+        } catch (RuntimeException e) {
+            return false;
+        }
+        boolean[] flags = new boolean[2];
+        scanTextComponent(root, flags);
+        return flags[0] && !flags[1];
+    }
+    
+    /**
+     * テキストコンポーネントを走査し、translateの有無と文章の有無を記録します。
+     * クリック時の動作（clickEvent）は表示されないため走査しません。
+     * @param element 走査対象
+     * @param flags [0]=translateあり、[1]=文章あり
+     */
+    private static void scanTextComponent(JsonElement element, boolean[] flags) {
+        if (element == null || element.isJsonNull()) {
+            return;
+        }
+        if (element.isJsonPrimitive()) {
+            if (!element.getAsString().trim().isEmpty()) {
+                flags[1] = true;
+            }
+            return;
+        }
+        if (element.isJsonArray()) {
+            for (JsonElement child : element.getAsJsonArray()) {
+                scanTextComponent(child, flags);
+            }
+            return;
+        }
+        for (Map.Entry<String, JsonElement> entry : element.getAsJsonObject().entrySet()) {
+            String key = entry.getKey();
+            JsonElement value = entry.getValue();
+            if ("translate".equals(key)) {
+                flags[0] = true;
+            } else if ("text".equals(key) || "contents".equals(key)) {
+                scanTextComponent(value, flags);
+            } else if (!"clickEvent".equals(key) && (value.isJsonObject() || value.isJsonArray())) {
+                scanTextComponent(value, flags);
+            }
+        }
     }
     
     /**

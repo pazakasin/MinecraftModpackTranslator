@@ -29,13 +29,25 @@ public class SNBTTranslationApplier {
      */
     public void applyTranslations(File sourceFile, File targetFile, 
                                   Map<String, String> translations) throws IOException {
+        String result = buildTranslatedContent(sourceFile, translations);
+        Files.writeString(targetFile.toPath(), result, StandardCharsets.UTF_8);
+    }
+    
+    /**
+     * 翻訳を適用した内容を作成します（ファイルへの書き込みは行わない）。
+     * @param sourceFile 元のSNBTファイル
+     * @param translations キーと翻訳のマップ（連番付きキー）
+     * @return 翻訳適用後の内容
+     * @throws IOException ファイル読み込みエラー
+     */
+    public String buildTranslatedContent(File sourceFile, Map<String, String> translations)
+            throws IOException {
         String content = Files.readString(sourceFile.toPath(), StandardCharsets.UTF_8);
         
         List<TextMatch> matches = collectMatches(content);
         List<Replacement> replacements = buildReplacements(content, matches, translations);
         
-        String result = applyReplacements(content, replacements);
-        Files.writeString(targetFile.toPath(), result, StandardCharsets.UTF_8);
+        return applyReplacements(content, replacements);
     }
     
     /**

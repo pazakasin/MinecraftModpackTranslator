@@ -71,9 +71,9 @@ public class GroupHeaderManager {
 					setForeground(Color.BLACK);
 				}
 				setSelected(value != null && (Boolean) value);
-				// 非対応形式（検出のみ）のファイルはチェックボックスを無効表示
+				// 選択不可（非対応形式・既存ja_jpあり・翻訳対象なし）のファイルはチェックボックスを無効表示
 				TranslatableFile file = fileTableModel.getFileAtRow(row);
-				setEnabled(file == null || file.isTranslatable());
+				setEnabled(file == null || file.isSelectable());
 				return this;
 			}
 		}

@@ -272,8 +272,14 @@ public class ModPackProcessor {
 	
 	/**
 	 * pack.mcmetaファイルを出力します。
+	 * Mod言語ファイルを1件以上出力した場合（assetsフォルダが存在する場合）のみ出力します。
 	 */
 	private void writePackMcmeta() {
+		if (!new File("output/resourcepacks/MyJPpack/assets").isDirectory()) {
+			log("");
+			log("Mod言語ファイルの出力がないため、pack.mcmetaは出力しません");
+			return;
+		}
 		try {
 			File inputDir = new File(inputPath);
 			String modpackName = inputDir.getName();

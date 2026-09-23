@@ -313,27 +313,26 @@ public class SelectiveTranslationHandler {
 	private void processQuestLangFile(TranslatableFile file, QuestTranslationResult questResult) {
 		questResult.hasLangFile = true;
 		
+		// 既存の日本語ファイルがある場合は選択不可のため通常は到達しないが、念のため出力せずに終了
 		if (file.isHasExistingJaJp()) {
 			file.setProcessingState(ProcessingState.EXISTING);
 			file.setResultMessage(ProcessingState.EXISTING.getDisplayName());
-		} else {
-			file.setProcessingState(ProcessingState.TRANSLATING);
-			file.setResultMessage(ProcessingState.TRANSLATING.getDisplayName());
+			updateFileState(file);
+			log(String.format("[Quest Lang][既存] %s - 既存の日本語ファイルがあるため出力しません",
+					file.getModName()));
+			return;
 		}
+		
+		file.setProcessingState(ProcessingState.TRANSLATING);
+		file.setResultMessage(ProcessingState.TRANSLATING.getDisplayName());
 		updateFileState(file);
 		
 		try {
 			File sourceFile = new File(file.getSourceFilePath());
 			
-			File existingJaJpFile = null;
-			if (file.isHasExistingJaJp() && file.getExistingJaJpContent() != null) {
-				File langDir = sourceFile.getParentFile();
-				existingJaJpFile = new File(langDir, "ja_jp.snbt");
-			}
-			
 			final TranslatableFile currentFile = file;
 			QuestFileResult fileResult = questProcessor.processSingleLangFile(
-					sourceFile, existingJaJpFile, file.getCharacterCount(),
+					sourceFile, null, file.getCharacterCount(),
 					new io.github.pazakasin.minecraft.modpack.translator.service.callback.ProgressCallback() {
 						@Override
 						public void onProgress(int current, int total) {
@@ -347,29 +346,20 @@ public class SelectiveTranslationHandler {
 			questResult.langFileSuccess = fileResult.success;
 			questResult.langFileCharacterCount = file.getCharacterCount();
 			
-			if (fileResult.success) {
-				if (fileResult.translated) {
-					file.setProcessingState(ProcessingState.COMPLETED);
-					file.setResultMessage(ProcessingState.COMPLETED.getDisplayName());
-				} else {
-					file.setProcessingState(ProcessingState.EXISTING);
-					file.setResultMessage(ProcessingState.EXISTING.getDisplayName());
-				}
-			} else {
-				file.setProcessingState(ProcessingState.FAILED);
-				file.setResultMessage(ProcessingState.FAILED.getDisplayName());
-			}
-			
+			ProcessingState state = resolveQuestState(fileResult);
+			file.setProcessingState(state);
+			file.setResultMessage(state.getDisplayName());
 			updateFileState(file);
 			
-			if (fileResult.success) {
-				if (fileResult.translated) {
-					log(String.format("[Quest Lang][翻訳] %s - 翻訳完了 (%d文字)",
-							file.getModName(), file.getCharacterCount()));
-				} else {
-					log(String.format("[Quest Lang][既存] %s - 日本語ファイルをコピー",
-							file.getModName()));
-				}
+			if (state == ProcessingState.COMPLETED) {
+				log(String.format("[Quest Lang][翻訳] %s - 翻訳完了 (%d文字)",
+						file.getModName(), file.getCharacterCount()));
+			} else if (state == ProcessingState.UNCHANGED) {
+				log(String.format("[Quest Lang][変更なし] %s - 翻訳結果が原文と同一のため出力しません",
+						file.getModName()));
+			} else if (state == ProcessingState.NO_TARGET) {
+				log(String.format("[Quest Lang][スキップ] %s - 翻訳対象テキストがないため出力しません",
+						file.getModName()));
 			}
 		} catch (Exception e) {
 			file.setProcessingState(ProcessingState.FAILED);
@@ -418,12 +408,10 @@ public class SelectiveTranslationHandler {
 			
 			if (fileResult.success) {
 				questResult.questFileSuccess++;
-				file.setProcessingState(ProcessingState.COMPLETED);
-				file.setResultMessage(ProcessingState.COMPLETED.getDisplayName());
-			} else {
-				file.setProcessingState(ProcessingState.FAILED);
-				file.setResultMessage(ProcessingState.FAILED.getDisplayName());
 			}
+			ProcessingState state = resolveQuestState(fileResult);
+			file.setProcessingState(state);
+			file.setResultMessage(state.getDisplayName());
 			
 			updateFileState(file);
 			questResult.questFileCharacterCount += file.getCharacterCount();
@@ -436,6 +424,21 @@ public class SelectiveTranslationHandler {
 					currentIndex, totalCount, file.getModName(), e.getMessage()));
 			logStackTrace(e);
 		}
+	}
+	
+	/**
+	 * クエスト処理結果から表示する処理状態を決定します。
+	 * @param fileResult クエストファイルの処理結果
+	 * @return 処理状態（完了・変更なし・対象なし・失敗）
+	 */
+	private ProcessingState resolveQuestState(QuestFileResult fileResult) {
+		if (!fileResult.success) {
+			return ProcessingState.FAILED;
+		}
+		if (!fileResult.translated) {
+			return ProcessingState.NO_TARGET;
+		}
+		return fileResult.unchanged ? ProcessingState.UNCHANGED : ProcessingState.COMPLETED;
 	}
 	
 	/**

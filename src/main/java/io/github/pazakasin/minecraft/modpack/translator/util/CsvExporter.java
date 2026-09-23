@@ -150,14 +150,14 @@ public class CsvExporter {
             
             if (file.isSelected()) {
                 selectedFiles++;
-                
-                if (file.isHasExistingJaJp()) {
-                    existingFiles++;
-                    existingChars += file.getCharacterCount();
-                } else {
-                    translationTargetFiles++;
-                    translationChars += file.getCharacterCount();
-                }
+                translationTargetFiles++;
+                translationChars += file.getCharacterCount();
+            }
+            
+            // 既存の日本語ファイルがあるファイルは選択不可のため、選択状態に関係なく集計する
+            if (file.isHasExistingJaJp()) {
+                existingFiles++;
+                existingChars += file.getCharacterCount();
             }
             
             if (file.getProcessingState() == ProcessingState.COMPLETED) {

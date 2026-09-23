@@ -97,9 +97,9 @@ public class UnifiedFileTablePanel extends JPanel {
 				if (fileTableModel.isGroupHeaderRow(row)) {
 					return false;
 				}
-				// 非対応形式（検出のみ）のファイルは選択不可
+				// 選択不可（非対応形式・既存ja_jpあり・翻訳対象なし）のファイルはチェック不可
 				TranslatableFile file = fileTableModel.getFileAtRow(row);
-				if (file != null && !file.isTranslatable()) {
+				if (file != null && !file.isSelectable()) {
 					return false;
 				}
 				return column == 0;
@@ -138,7 +138,8 @@ public class UnifiedFileTablePanel extends JPanel {
 					int selectedRow = fileTable.getSelectedRow();
 					if (selectedRow >= 0 && !fileTableModel.isGroupHeaderRow(selectedRow)) {
 						TranslatableFile file = actionHandler.getFileAtRow(selectedRow);
-						if (file != null && actionHandler.isFileCompleted(selectedRow)) {
+						// 翻訳完了・履歴あり・既存あり（出力なし）の行は翻訳比較、それ以外はファイル内容確認
+						if (file != null && actionHandler.canCompare(selectedRow)) {
 							if (parentFrame != null) {
 								parentFrame.handleCompareTranslation(file);
 							}
@@ -266,6 +267,18 @@ public class UnifiedFileTablePanel extends JPanel {
 	}
 	
 	/**
+	 * 表でクリック（行選択）されているファイルを取得します。
+	 * @return 行選択されているファイル（未選択・グループヘッダー行の場合null）
+	 */
+	public TranslatableFile getHighlightedFile() {
+		int selectedRow = fileTable.getSelectedRow();
+		if (selectedRow < 0 || fileTableModel.isGroupHeaderRow(selectedRow)) {
+			return null;
+		}
+		return actionHandler.getFileAtRow(selectedRow);
+	}
+	
+	/**
 	 * すべてのファイルのリストを取得します。
 	 * @return すべてのファイルのリスト
 	 */
@@ -311,7 +324,7 @@ public class UnifiedFileTablePanel extends JPanel {
 	private void updateCompareButtonState() {
 		int selectedRow = fileTable.getSelectedRow();
 		if (selectedRow >= 0 && !fileTableModel.isGroupHeaderRow(selectedRow)) {
-			boolean canCompare = actionHandler.isFileCompleted(selectedRow);
+			boolean canCompare = actionHandler.canCompare(selectedRow);
 			compareButton.setEnabled(canCompare);
 		} else {
 			compareButton.setEnabled(false);

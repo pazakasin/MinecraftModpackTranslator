@@ -1,6 +1,7 @@
 package io.github.pazakasin.minecraft.modpack.translator.service.quest.processor;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Map;
 
@@ -8,10 +9,11 @@ import io.github.pazakasin.minecraft.modpack.translator.model.QuestFileResult;
 import io.github.pazakasin.minecraft.modpack.translator.service.quest.SNBTParser;
 import io.github.pazakasin.minecraft.modpack.translator.service.quest.util.QuestTranslationHelper;
 import io.github.pazakasin.minecraft.modpack.translator.service.callback.LogCallback;
+import io.github.pazakasin.minecraft.modpack.translator.service.processor.TranslationChangeDetector;
 
 /**
  * Quest File本体の処理を担当するクラス。
- * 正規表現ベースでテキスト抽出、翻訳適用を実行。
+ * 正規表現ベースでテキスト抽出、翻訳適用を実行し、原文から変更がある場合のみ出力する。
  */
 public class QuestFileContentProcessor {
 	/** SNBTパーサー。 */
@@ -25,6 +27,9 @@ public class QuestFileContentProcessor {
 	
 	/** 出力先ディレクトリ。 */
 	private final File outputDir;
+	
+	/** 翻訳結果の変更有無判定（未変更のファイルは出力しない）。 */
+	private final TranslationChangeDetector changeDetector = new TranslationChangeDetector();
 	
 	/**
 	 * QuestFileContentProcessorのコンストラクタ。
@@ -67,19 +72,12 @@ public class QuestFileContentProcessor {
 			
 			Map<String, String> texts = parser.extractTranslatableTexts(questFile);
 			
-			File relativePath = getRelativePath(questFile);
-			File outputBase = outputDir.getParentFile();
-			File outputFile = new File(outputBase, relativePath.getPath());
-			outputFile.getParentFile().mkdirs();
-			
 			if (texts.isEmpty()) {
-				// 翻訳対象なしの場合もログ出力
-				log(String.format("[Quest %d/%d][スキップ] %s - 翻訳対象テキストなし",
+				// 翻訳対象なし：未修正のファイルは出力しない（フォルダも作成しない）
+				log(String.format("[Quest %d/%d][スキップ] %s - 翻訳対象テキストがないため出力しません",
 						currentIndex, totalCount, questFile.getName()));
-				Files.copy(questFile.toPath(), outputFile.toPath(),
-						java.nio.file.StandardCopyOption.REPLACE_EXISTING);
 				return QuestFileResult.createQuestFileResult(
-						questFile, outputFile, false, true, 0);
+						questFile, null, false, true, 0);
 			}
 			
 			int charCount = 0;
@@ -91,7 +89,22 @@ public class QuestFileContentProcessor {
 			
 			Map<String, String> translations = helper.translateQuestFileTexts(texts, progressCallback);
 			
-			parser.applyTranslations(questFile, outputFile, translations);
+			String originalContent = Files.readString(questFile.toPath(), StandardCharsets.UTF_8);
+			String translatedContent = parser.buildTranslatedContent(questFile, translations);
+			
+			if (changeDetector.isTextUnchanged(originalContent, translatedContent)) {
+				log(String.format("[Quest %d/%d][変更なし] %s - 翻訳結果が原文と同一のため出力しません",
+						currentIndex, totalCount, questFile.getName()));
+				QuestFileResult unchangedResult = QuestFileResult.createQuestFileResult(
+						questFile, null, true, true, charCount);
+				unchangedResult.unchanged = true;
+				return unchangedResult;
+			}
+			
+			File relativePath = getRelativePath(questFile);
+			File outputFile = new File(outputDir.getParentFile(), relativePath.getPath());
+			outputFile.getParentFile().mkdirs();
+			Files.writeString(outputFile.toPath(), translatedContent, StandardCharsets.UTF_8);
 			
 			// Mod言語ファイル形式に合わせたログ
 			log(String.format("[Quest %d/%d][翻訳] %s - 翻訳完了 (%d文字)",

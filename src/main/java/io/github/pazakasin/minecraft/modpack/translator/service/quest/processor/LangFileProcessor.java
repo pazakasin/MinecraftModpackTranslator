@@ -14,6 +14,7 @@ import io.github.pazakasin.minecraft.modpack.translator.service.quest.LangFileSN
 import io.github.pazakasin.minecraft.modpack.translator.service.quest.SNBTParser;
 import io.github.pazakasin.minecraft.modpack.translator.service.quest.util.QuestTranslationHelper;
 import io.github.pazakasin.minecraft.modpack.translator.service.callback.LogCallback;
+import io.github.pazakasin.minecraft.modpack.translator.service.processor.TranslationChangeDetector;
 import net.querz.nbt.tag.Tag;
 
 /**
@@ -36,6 +37,9 @@ public class LangFileProcessor {
 	/** 出力先ディレクトリ。 */
 	private final File outputDir;
 	
+	/** 翻訳結果の変更有無判定（未変更のファイルは出力しない）。 */
+	private final TranslationChangeDetector changeDetector = new TranslationChangeDetector();
+	
 	/**
 	 * LangFileProcessorのコンストラクタ。
 	 * @param parser SNBTパーサー
@@ -54,7 +58,7 @@ public class LangFileProcessor {
 	}
 	
 	/**
-	 * Lang Fileを処理します。既存のja_jp.snbtがある場合はコピーします。
+	 * Lang Fileを処理します。既存のja_jp.snbtがある場合や翻訳で変更がない場合は出力しません。
 	 * @param langFile 元のLang File
 	 * @param existingJaJpFile 既存のja_jp.snbtファイル（なければnull）
 	 * @return 処理結果
@@ -64,7 +68,7 @@ public class LangFileProcessor {
 	}
 	
 	/**
-	 * Lang Fileを処理します。既存のja_jp.snbtがある場合はコピーします。
+	 * Lang Fileを処理します。既存のja_jp.snbtがある場合や翻訳で変更がない場合は出力しません。
 	 * @param langFile 元のLang File
 	 * @param existingJaJpFile 既存のja_jp.snbtファイル（なければnull）
 	 * @param progressCallback 進捗コールバック
@@ -76,7 +80,7 @@ public class LangFileProcessor {
 	}
 	
 	/**
-	 * Lang Fileを処理します。既存のja_jp.snbtがある場合はコピーします。
+	 * Lang Fileを処理します。既存のja_jp.snbtがある場合や翻訳で変更がない場合は出力しません。
 	 * @param langFile 元のLang File
 	 * @param existingJaJpFile 既存のja_jp.snbtファイル（なければnull）
 	 * @param charCount 文字数（ログ出力用、0の場合は内部で計算）
@@ -86,17 +90,10 @@ public class LangFileProcessor {
 	public QuestFileResult process(File langFile, File existingJaJpFile, int charCount,
 			io.github.pazakasin.minecraft.modpack.translator.service.callback.ProgressCallback progressCallback) {
 		try {
-			File outputBase = outputDir.getParentFile();
-			File outputLangDir = new File(outputBase, "config/ftbquests/quests/lang");
-			outputLangDir.mkdirs();
-			File outputFile = new File(outputLangDir, "ja_jp.snbt");
-			
 			if (existingJaJpFile != null && existingJaJpFile.exists()) {
-				Files.copy(existingJaJpFile.toPath(), outputFile.toPath(),
-						java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-				
+				// 未修正のファイルは出力しない（既存の日本語ファイルはModPack側にあるため不要）
 				return QuestFileResult.createLangFileResult(
-						langFile, outputFile, false, true, 0);
+						langFile, null, false, true, 0);
 			}
 			
 			Tag<?> rootTag = parser.parse(langFile);
@@ -113,7 +110,20 @@ public class LangFileProcessor {
 			
 			Map<String, String> translations = helper.translateLangFileTexts(texts, progressCallback);
 			
-			applyTranslationsToLangFile(langFile, outputFile, translations);
+			String originalContent = Files.readString(langFile.toPath(), StandardCharsets.UTF_8);
+			String translatedContent = buildTranslatedLangContent(originalContent, translations);
+			
+			if (changeDetector.isTextUnchanged(originalContent, translatedContent)) {
+				QuestFileResult unchangedResult = QuestFileResult.createLangFileResult(
+						langFile, null, true, true, charCount);
+				unchangedResult.unchanged = true;
+				return unchangedResult;
+			}
+			
+			File outputLangDir = new File(outputDir.getParentFile(), "config/ftbquests/quests/lang");
+			outputLangDir.mkdirs();
+			File outputFile = new File(outputLangDir, "ja_jp.snbt");
+			Files.writeString(outputFile.toPath(), translatedContent, StandardCharsets.UTF_8);
 			
 			return QuestFileResult.createLangFileResult(
 					langFile, outputFile, true, true, charCount);
@@ -126,15 +136,12 @@ public class LangFileProcessor {
 	}
 	
 	/**
-	 * Lang File用の翻訳適用メソッド（正規表現ベース）。
-	 * @param sourceFile 元のSNBTファイル
-	 * @param targetFile 出力先ファイル
+	 * Lang File用の翻訳適用メソッド（正規表現ベース）。ファイルへの書き込みは行いません。
+	 * @param content 元のSNBT内容
 	 * @param translations キーと翻訳のマップ
-	 * @throws IOException ファイルI/Oエラー
+	 * @return 翻訳適用後の内容
 	 */
-	private void applyTranslationsToLangFile(File sourceFile, File targetFile,
-			Map<String, String> translations) throws IOException {
-		String content = Files.readString(sourceFile.toPath(), StandardCharsets.UTF_8);
+	private String buildTranslatedLangContent(String content, Map<String, String> translations) {
 		
 		for (Map.Entry<String, String> entry : translations.entrySet()) {
 			String key = escapeRegex(entry.getKey());
@@ -180,7 +187,7 @@ public class LangFileProcessor {
 			}
 		}
 		
-		Files.writeString(targetFile.toPath(), content, StandardCharsets.UTF_8);
+		return content;
 	}
 	
 	/**

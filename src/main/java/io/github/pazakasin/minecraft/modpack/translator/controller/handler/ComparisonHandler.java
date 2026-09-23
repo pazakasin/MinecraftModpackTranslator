@@ -15,6 +15,8 @@ import io.github.pazakasin.minecraft.modpack.translator.comparison.TranslationHi
 import io.github.pazakasin.minecraft.modpack.translator.controller.callback.AnalyzedFilesCallback;
 import io.github.pazakasin.minecraft.modpack.translator.controller.ui.LogPanel;
 import io.github.pazakasin.minecraft.modpack.translator.controller.ui.UnifiedFileTablePanel;
+import io.github.pazakasin.minecraft.modpack.translator.model.FileType;
+import io.github.pazakasin.minecraft.modpack.translator.model.ProcessingState;
 import io.github.pazakasin.minecraft.modpack.translator.model.TranslatableFile;
 import io.github.pazakasin.minecraft.modpack.translator.util.CsvExporter;
 
@@ -116,27 +118,19 @@ public class ComparisonHandler {
 	}
 
 	/**
-	 * 翻訳前後のファイルを比較します。
+	 * 表でクリック（行選択）されているファイルの翻訳前後を比較します。
 	 */
 	public void compareTranslation() {
-		List<TranslatableFile> selectedFiles = fileTablePanel.getSelectedFiles();
+		TranslatableFile highlightedFile = fileTablePanel.getHighlightedFile();
 
-		if (selectedFiles.isEmpty()) {
+		if (highlightedFile == null) {
 			JOptionPane.showMessageDialog(parentFrame,
-					"比較対象のファイルを選択してください。",
+					"比較対象のファイルを表で選択してください。",
 					"警告", JOptionPane.WARNING_MESSAGE);
 			return;
 		}
 
-		if (selectedFiles.size() != 1) {
-			JOptionPane.showMessageDialog(parentFrame,
-					"比較は1つのファイルのみ選択してください。",
-					"警告", JOptionPane.WARNING_MESSAGE);
-			return;
-		}
-
-		TranslatableFile selectedFile = selectedFiles.get(0);
-		compareTranslation(selectedFile);
+		compareTranslation(highlightedFile);
 	}
 
 	/**
@@ -162,6 +156,12 @@ public class ComparisonHandler {
 			return;
 		}
 
+		// 既存の日本語ファイルがある場合はworkフォルダの原文と既存ja_jpを比較
+		if (selectedFile.getProcessingState() == ProcessingState.EXISTING) {
+			compareWithExistingJaJp(selectedFile, originalFile);
+			return;
+		}
+
 		// 翻訳履歴がある場合は履歴との比較を実行
 		TranslationHistoryEntry historyEntry = selectedFile.getHistoryEntry();
 		if (historyEntry != null) {
@@ -181,6 +181,35 @@ public class ComparisonHandler {
 			return;
 		}
 
+		runComparison(originalFile, translatedFile);
+	}
+
+	/**
+	 * workフォルダの原文（en_us）と既存の日本語ファイルを比較します。
+	 * @param selectedFile 比較対象ファイル（既存ja_jpあり）
+	 * @param jaJpFile workフォルダ内の既存日本語ファイル
+	 */
+	private void compareWithExistingJaJp(TranslatableFile selectedFile, File jaJpFile) {
+		String enUsName = selectedFile.getFileType() == FileType.QUEST_LANG_FILE
+				? new File(selectedFile.getSourceFilePath()).getName()
+				: "en_us.json";
+		File enUsFile = new File(jaJpFile.getParentFile(), enUsName);
+		if (!enUsFile.exists()) {
+			JOptionPane.showMessageDialog(parentFrame,
+					"workフォルダの原文ファイルが見つかりません: " + enUsFile.getAbsolutePath()
+							+ "\nファイル解析を再実行してください。",
+					"エラー", JOptionPane.ERROR_MESSAGE);
+			return;
+		}
+		runComparison(enUsFile, jaJpFile);
+	}
+
+	/**
+	 * 2つのファイルを比較し、結果ダイアログを表示します。
+	 * @param originalFile 比較元（原文）ファイル
+	 * @param translatedFile 比較先（日本語）ファイル
+	 */
+	private void runComparison(File originalFile, File translatedFile) {
 		try {
 			logPanel.appendLog("\n=== 翻訳比較開始 ===");
 			logPanel.appendLog("比較元ファイル: " + originalFile.getAbsolutePath());

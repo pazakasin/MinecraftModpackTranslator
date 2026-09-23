@@ -10,10 +10,11 @@ import io.github.pazakasin.minecraft.modpack.translator.service.callback.FileSta
 import io.github.pazakasin.minecraft.modpack.translator.service.callback.LogCallback;
 import io.github.pazakasin.minecraft.modpack.translator.service.callback.ProgressCallback;
 import io.github.pazakasin.minecraft.modpack.translator.service.processor.LanguageFileWriter;
+import io.github.pazakasin.minecraft.modpack.translator.service.processor.TranslationChangeDetector;
 
 /**
  * Mod言語ファイルの処理を担当するクラス。
- * 既存ファイルのコピーまたは翻訳を実行。
+ * 翻訳を実行し、原文から変更がある場合のみ出力する（既存の日本語ファイルは出力しない）。
  */
 public class ModLanguageFileHandler {
 	/**
@@ -39,11 +40,10 @@ public class ModLanguageFileHandler {
 				file.setResultMessage(ProcessingState.EXISTING.getDisplayName());
 				updateFileState(file);
 				
-				fileWriter.writeLanguageFiles(file.getFileId(),
-						file.getFileContent(), file.getExistingJaJpContent());
+				// 未修正のファイルは出力しない（既存の日本語ファイルはModPack側にあるため不要）
 				result.translationSuccess = true;
 				
-				log(String.format("[Mod %d/%d][既存] %s - 日本語ファイルをコピー",
+				log(String.format("[Mod %d/%d][既存] %s - 既存の日本語ファイルがあるため出力しません",
 						currentModNum, totalMods, file.getModName()));
 			} else {
 				file.setProcessingState(ProcessingState.TRANSLATING);
@@ -53,17 +53,27 @@ public class ModLanguageFileHandler {
 				String translatedContent = translateWithProgress(
 				file, file.getFileContent(), currentModNum, totalMods);
 				
-				fileWriter.writeLanguageFiles(file.getFileId(),
-						file.getFileContent(), translatedContent);
 				result.translated = true;
 				result.translationSuccess = true;
 				
-				file.setProcessingState(ProcessingState.COMPLETED);
-				file.setResultMessage(ProcessingState.COMPLETED.getDisplayName());
-				updateFileState(file);
-				
-				log(String.format("[Mod %d/%d][翻訳] %s - 翻訳完了 (%d文字)",
-						currentModNum, totalMods, file.getModName(), file.getCharacterCount()));
+				if (changeDetector.isJsonUnchanged(file.getFileContent(), translatedContent)) {
+					file.setProcessingState(ProcessingState.UNCHANGED);
+					file.setResultMessage(ProcessingState.UNCHANGED.getDisplayName());
+					updateFileState(file);
+					
+					log(String.format("[Mod %d/%d][変更なし] %s - 翻訳結果が原文と同一のため出力しません",
+							currentModNum, totalMods, file.getModName()));
+				} else {
+					fileWriter.writeLanguageFiles(file.getFileId(),
+							file.getFileContent(), translatedContent);
+					
+					file.setProcessingState(ProcessingState.COMPLETED);
+					file.setResultMessage(ProcessingState.COMPLETED.getDisplayName());
+					updateFileState(file);
+					
+					log(String.format("[Mod %d/%d][翻訳] %s - 翻訳完了 (%d文字)",
+							currentModNum, totalMods, file.getModName(), file.getCharacterCount()));
+				}
 				
 				logProgress(" ");
 			}
@@ -98,6 +108,9 @@ public class ModLanguageFileHandler {
 	
 	/** ファイル状態更新コールバック。 */
 	private FileStateUpdateCallback fileStateCallback;
+	
+	/** 翻訳結果の変更有無判定（未変更のファイルは出力しない）。 */
+	private final TranslationChangeDetector changeDetector = new TranslationChangeDetector();
 	
 	/**
 	 * ModLanguageFileHandlerのコンストラクタ。

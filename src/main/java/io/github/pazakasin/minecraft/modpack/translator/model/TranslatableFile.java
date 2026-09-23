@@ -97,6 +97,7 @@ public class TranslatableFile {
         file.fileContent = fileContent;
         file.existingJaJpContent = existingJaJpContent;
         file.selected = !hasExistingJaJp;
+        file.applyInitialState();
         return file;
     }
     
@@ -124,6 +125,7 @@ public class TranslatableFile {
         file.fileContent = fileContent;
         file.existingJaJpContent = existingJaJpContent;
         file.selected = !hasExistingJaJp;
+        file.applyInitialState();
         return file;
     }
     
@@ -148,6 +150,7 @@ public class TranslatableFile {
         file.hasExistingJaJp = false;
         file.fileContent = fileContent;
         file.selected = true;
+        file.applyInitialState();
         return file;
     }
     
@@ -175,6 +178,7 @@ public class TranslatableFile {
         file.fileContent = fileContent;
         file.existingJaJpContent = existingJaJpContent;
         file.selected = !hasExistingJaJp;
+        file.applyInitialState();
         return file;
     }
     
@@ -202,6 +206,7 @@ public class TranslatableFile {
         file.fileContent = fileContent;
         file.existingJaJpContent = existingJaJpContent;
         file.selected = !hasExistingJaJp;
+        file.applyInitialState();
         return file;
     }
 
@@ -231,6 +236,7 @@ public class TranslatableFile {
         file.fileContent = fileContent;
         file.existingJaJpContent = existingJaJpContent;
         file.selected = false;
+        file.applyInitialState();
         return file;
     }
 
@@ -250,6 +256,7 @@ public class TranslatableFile {
         TranslatableFile file = createConfigLangFile(filePath, relativePath, fileId, 0,
                 hasExistingJaJp, fileContent, null);
         file.translatable = false;
+        file.processingState = ProcessingState.PENDING;
         file.resultMessage = reason;
         return file;
     }
@@ -360,11 +367,44 @@ public class TranslatableFile {
     }
     
     /**
-     * 選択状態を設定します（翻訳不可のファイルは常に未選択）。
+     * 選択状態を設定します（選択不可のファイルは常に未選択）。
      * @param selected 選択状態
      */
     public void setSelected(boolean selected) {
-        this.selected = selected && translatable;
+        this.selected = selected && isSelectable();
+    }
+
+    /**
+     * 選択（翻訳）可能かを取得します。
+     * 非対応形式、既存の日本語ファイルあり、翻訳対象文字数0のQuestファイルは選択不可です。
+     * @return 選択可能な場合true
+     */
+    public boolean isSelectable() {
+        return translatable && !hasExistingJaJp && !isEmptyQuestFile();
+    }
+
+    /**
+     * 翻訳対象文字数0のQuestファイルかを判定します。
+     * @return 翻訳対象テキストがないQuestファイルの場合true
+     */
+    private boolean isEmptyQuestFile() {
+        return fileType == FileType.QUEST_FILE && characterCount == 0;
+    }
+
+    /**
+     * 解析直後の状態を設定します。
+     * 選択不可のファイルは「既存あり」または「対象なし」（いずれも出力なし）とします。
+     */
+    private void applyInitialState() {
+        if (hasExistingJaJp) {
+            processingState = ProcessingState.EXISTING;
+        } else if (isEmptyQuestFile()) {
+            processingState = ProcessingState.NO_TARGET;
+        } else {
+            return;
+        }
+        resultMessage = processingState.getDisplayName();
+        selected = false;
     }
     
     public String getFileContent() {

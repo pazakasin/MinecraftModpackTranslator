@@ -27,6 +27,9 @@ public class QuestFileResult {
     /** 出力先ファイルパス（絶対パス）。 */
     public String outputPath;
     
+    /** 翻訳したが原文から変更がなかったため出力しなかったか。 */
+    public boolean unchanged = false;
+    
     /**
      * QuestFileResultのデフォルトコンストラクタ。
      */

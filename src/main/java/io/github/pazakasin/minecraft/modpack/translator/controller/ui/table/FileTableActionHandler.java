@@ -64,7 +64,7 @@ public class FileTableActionHandler {
 			}
 			
 			TranslatableFile rowFile = fileTableModel.getFileAtRow(i);
-			if (rowFile != null && !rowFile.isTranslatable()) {
+			if (rowFile != null && !rowFile.isSelectable()) {
 				continue;
 			}
 			
@@ -96,7 +96,7 @@ public class FileTableActionHandler {
 			}
 			
 			TranslatableFile file = fileTableModel.getFileAtRow(i);
-			if (file != null && file.getFileType() == type && file.isTranslatable()) {
+			if (file != null && file.getFileType() == type && file.isSelectable()) {
 				tableModel.setValueAt(selected, i, 0);
 			}
 		}
@@ -108,7 +108,6 @@ public class FileTableActionHandler {
 	 * 選択済み文字数を更新します。
 	 */
 	public void updateSelectedCharCount() {
-		int translationCharCount = 0;
 		int totalCharCount = 0;
 		
 		for (int i = 0; i < tableModel.getRowCount(); i++) {
@@ -122,28 +121,16 @@ public class FileTableActionHandler {
 			if (file != null) {
 				if (selected != null && selected) {
 					file.setSelected(true);
-					int charCount = file.getCharacterCount();
-					totalCharCount += charCount;
-					
-					if (!file.isHasExistingJaJp()) {
-						translationCharCount += charCount;
-					}
+					totalCharCount += file.getCharacterCount();
 				} else {
 					file.setSelected(false);
 				}
 			}
 		}
 		
-		int existingCharCount = totalCharCount - translationCharCount;
-		
-		if (existingCharCount > 0) {
-			selectedCharCountLabel.setText(String.format(
-					"選択済み文字数: %,d (翻訳対象: %,d / 既存: %,d)",
-					totalCharCount, translationCharCount, existingCharCount));
-		} else {
-			selectedCharCountLabel.setText(String.format(
-					"選択済み文字数: %,d", totalCharCount));
-		}
+		// 既存の日本語ファイルがあるファイルは選択不可のため、内訳は表示しない
+		selectedCharCountLabel.setText(String.format(
+				"選択済み文字数: %,d", totalCharCount));
 	}
 	
 	/**
@@ -249,6 +236,20 @@ public class FileTableActionHandler {
 		return file != null && 
 				(file.getProcessingState() == ProcessingState.COMPLETED ||
 				 file.getProcessingState() == ProcessingState.HAS_HISTORY);
+	}
+	
+	/**
+	 * 翻訳比較が可能かどうかを判定します（翻訳比較ボタン・ダブルクリック用）。
+	 * 翻訳完了・履歴あり・既存の日本語ファイルありの場合に比較可能です。
+	 * @param row 行番号
+	 * @return 比較可能な場合true
+	 */
+	public boolean canCompare(int row) {
+		TranslatableFile file = fileTableModel.getFileAtRow(row);
+		if (file == null) {
+			return false;
+		}
+		return isFileCompleted(row) || file.getProcessingState() == ProcessingState.EXISTING;
 	}
 	
 	/**

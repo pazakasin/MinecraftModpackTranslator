@@ -12,10 +12,12 @@ import io.github.pazakasin.minecraft.modpack.translator.service.TranslationServi
 import io.github.pazakasin.minecraft.modpack.translator.service.callback.FileStateUpdateCallback;
 import io.github.pazakasin.minecraft.modpack.translator.service.callback.LogCallback;
 import io.github.pazakasin.minecraft.modpack.translator.service.callback.ProgressCallback;
+import io.github.pazakasin.minecraft.modpack.translator.service.processor.TranslationChangeDetector;
 
 /**
  * OpenLoader言語ファイルの処理を担当するクラス。
- * 既存ファイルのコピーまたは翻訳を実行し、入力の相対パス構造を保ったまま出力する。
+ * 翻訳を実行し、原文から変更がある場合のみ入力の相対パス構造を保ったまま出力する
+ * （既存の日本語ファイルは出力しない）。
  * 出力方式が同じConfig（その他）の言語ファイルにも、表示ラベルを変えて使用する。
  */
 public class OpenLoaderProcessor {
@@ -30,6 +32,9 @@ public class OpenLoaderProcessor {
 
 	/** ログ・結果表示用のラベル（例: OpenLoader、Config）。 */
 	private final String label;
+
+	/** 翻訳結果の変更有無判定（未変更のファイルは出力しない）。 */
+	private final TranslationChangeDetector changeDetector = new TranslationChangeDetector();
 
 	/**
 	 * OpenLoaderProcessorのコンストラクタ（ラベルは「OpenLoader」）。
@@ -83,10 +88,10 @@ public class OpenLoaderProcessor {
 				file.setResultMessage(ProcessingState.EXISTING.getDisplayName());
 				updateFileState(file);
 
-				writeOpenLoaderLangFile(file, file.getExistingJaJpContent());
+				// 未修正のファイルは出力しない（既存の日本語ファイルはModPack側にあるため不要）
 				result.translationSuccess = true;
 
-				log(String.format("[%s %d/%d][既存] %s - 日本語ファイルをコピー",
+				log(String.format("[%s %d/%d][既存] %s - 既存の日本語ファイルがあるため出力しません",
 						label, currentNum, totalFiles, file.getFileId()));
 			} else {
 				file.setProcessingState(ProcessingState.TRANSLATING);
@@ -96,16 +101,26 @@ public class OpenLoaderProcessor {
 				String translatedContent = translateWithProgress(
 						file, file.getFileContent(), currentNum, totalFiles);
 
-				writeOpenLoaderLangFile(file, translatedContent);
 				result.translated = true;
 				result.translationSuccess = true;
 
-				file.setProcessingState(ProcessingState.COMPLETED);
-				file.setResultMessage(ProcessingState.COMPLETED.getDisplayName());
-				updateFileState(file);
+				if (changeDetector.isJsonUnchanged(file.getFileContent(), translatedContent)) {
+					file.setProcessingState(ProcessingState.UNCHANGED);
+					file.setResultMessage(ProcessingState.UNCHANGED.getDisplayName());
+					updateFileState(file);
 
-				log(String.format("[%s %d/%d][翻訳] %s - 翻訳完了 (%d文字)",
-						label, currentNum, totalFiles, file.getFileId(), file.getCharacterCount()));
+					log(String.format("[%s %d/%d][変更なし] %s - 翻訳結果が原文と同一のため出力しません",
+							label, currentNum, totalFiles, file.getFileId()));
+				} else {
+					writeOpenLoaderLangFile(file, translatedContent);
+
+					file.setProcessingState(ProcessingState.COMPLETED);
+					file.setResultMessage(ProcessingState.COMPLETED.getDisplayName());
+					updateFileState(file);
+
+					log(String.format("[%s %d/%d][翻訳] %s - 翻訳完了 (%d文字)",
+							label, currentNum, totalFiles, file.getFileId(), file.getCharacterCount()));
+				}
 
 				logProgress(" ");
 			}

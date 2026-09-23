@@ -81,6 +81,18 @@ public class SNBTParser {
     }
     
     /**
+     * Quest File本体用: 翻訳を適用した内容を作成します（ファイルへの書き込みは行わない）。
+     * @param sourceFile 元のSNBTファイル
+     * @param translations キーと翻訳のマップ（連番付きキー）
+     * @return 翻訳適用後の内容
+     * @throws IOException ファイル読み込みエラー
+     */
+    public String buildTranslatedContent(File sourceFile, Map<String, String> translations)
+            throws IOException {
+        return translationApplier.buildTranslatedContent(sourceFile, translations);
+    }
+    
+    /**
      * FTB Quests形式のSNBTを標準形式に変換します（Lang File用）。
      * FTB Questsはカンマ区切りを省略しているため、パース前に追加。
      * エスケープされた引用符を考慮した処理を行う。
