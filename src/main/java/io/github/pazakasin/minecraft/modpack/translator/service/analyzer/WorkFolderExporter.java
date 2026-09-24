@@ -3,11 +3,14 @@ package io.github.pazakasin.minecraft.modpack.translator.service.analyzer;
 import io.github.pazakasin.minecraft.modpack.translator.model.TranslatableFile;
 import io.github.pazakasin.minecraft.modpack.translator.model.FileType;
 import io.github.pazakasin.minecraft.modpack.translator.service.callback.LogCallback;
+import io.github.pazakasin.minecraft.modpack.translator.service.processor.JsonLangMerger;
 
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * workフォルダへのファイルエクスポートを担当するクラス。
@@ -16,6 +19,9 @@ import java.util.List;
 public class WorkFolderExporter {
     /** ログコールバック。 */
     private final LogCallback logger;
+    
+    /** export()1回の中で書き込み済みのMod言語ファイル（絶対パス）。同一namespaceの2回目以降はマージする。 */
+    private final Set<String> exportedModLangPaths = new HashSet<String>();
     
     /**
      * WorkFolderExporterのコンストラクタ。
@@ -38,6 +44,7 @@ public class WorkFolderExporter {
         workDir.mkdirs();
         
         int exportCount = 0;
+        exportedModLangPaths.clear();
         
         for (TranslatableFile file : files) {
             try {
@@ -86,15 +93,38 @@ public class WorkFolderExporter {
         outputDir.mkdirs();
         
         File enUsFile = new File(outputDir, "en_us.json");
-        Files.write(enUsFile.toPath(), file.getFileContent().getBytes("UTF-8"));
+        writeOrMergeModLang(enUsFile, file.getFileContent(), file.getFileId());
         
         if (file.isHasExistingJaJp() && file.getExistingJaJpContent() != null) {
             File jaJpFile = new File(outputDir, "ja_jp.json");
-            Files.write(jaJpFile.toPath(), file.getExistingJaJpContent().getBytes("UTF-8"));
+            writeOrMergeModLang(jaJpFile, file.getExistingJaJpContent(), file.getFileId());
             file.setWorkFilePath(jaJpFile.getAbsolutePath());
         } else {
             file.setWorkFilePath(enUsFile.getAbsolutePath());
         }
+    }
+    
+    /**
+     * Mod言語ファイルを書き込みます。同一export内で既に書き込んだファイルならキー単位でマージします。
+     * @param target 出力先ファイル
+     * @param content 書き込む内容
+     * @param namespace namespace（ログ用）
+     * @throws Exception ファイルI/Oエラー
+     */
+    private void writeOrMergeModLang(File target, String content, String namespace) throws Exception {
+        String key = target.getAbsolutePath();
+        String output = content;
+        if (exportedModLangPaths.contains(key) && target.isFile()) {
+            String existing = new String(Files.readAllBytes(target.toPath()), "UTF-8");
+            try {
+                output = JsonLangMerger.merge(existing, content, null);
+                log("[マージ] work: namespace '" + namespace + "' の " + target.getName() + " を複数JARからマージしました");
+            } catch (IllegalArgumentException e) {
+                log("[警告] work: namespace '" + namespace + "' のマージに失敗したため上書きします: " + e.getMessage());
+            }
+        }
+        Files.write(target.toPath(), output.getBytes("UTF-8"));
+        exportedModLangPaths.add(key);
     }
     
     /**

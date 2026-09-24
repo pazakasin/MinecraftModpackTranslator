@@ -5,6 +5,8 @@ import io.github.pazakasin.minecraft.modpack.translator.service.callback.LogCall
 import io.github.pazakasin.minecraft.modpack.translator.service.callback.ProgressUpdateCallback;
 import io.github.pazakasin.minecraft.modpack.translator.service.processor.CharacterCounter;
 import io.github.pazakasin.minecraft.modpack.translator.service.processor.JarFileAnalyzer;
+import io.github.pazakasin.minecraft.modpack.translator.service.processor.LanguageFileInfo;
+import io.github.pazakasin.minecraft.modpack.translator.service.processor.NamespaceUsageReport;
 
 import java.io.File;
 import java.io.FilenameFilter;
@@ -13,7 +15,7 @@ import java.util.List;
 
 /**
  * Mod JARファイルの解析を担当するクラス。
- * modsフォルダ内のJARファイルから言語ファイルを検出。
+ * modsフォルダ内のJARファイルから言語ファイルをnamespace単位で検出。
  */
 public class ModFileAnalyzer {
     /** ログコールバック。 */
@@ -65,6 +67,8 @@ public class ModFileAnalyzer {
         log("検出されたMod数: " + jarFiles.length);
         log("");
         
+        NamespaceUsageReport report = new NamespaceUsageReport();
+        
         for (int i = 0; i < jarFiles.length; i++) {
             File jarFile = jarFiles[i];
             int currentModNum = i + 1;
@@ -74,16 +78,18 @@ public class ModFileAnalyzer {
                 currentModNum, totalMods, jarFile.getName()));
             
             try {
-                TranslatableFile file = analyzeJar(jarFile);
-                if (file != null) {
-                    files.add(file);
-                    log(String.format("[%d/%d] %s - %s (%d文字)", 
-                        currentModNum, totalMods, jarFile.getName(),
-                        file.isHasExistingJaJp() ? "既存ja_jp有" : "翻訳対象",
-                        file.getCharacterCount()));
-                } else {
+                List<TranslatableFile> jarResults = analyzeJar(jarFile);
+                if (jarResults.isEmpty()) {
                     log(String.format("[%d/%d] %s - en_us.jsonなし", 
                         currentModNum, totalMods, jarFile.getName()));
+                }
+                for (TranslatableFile file : jarResults) {
+                    files.add(file);
+                    report.add(jarFile.getName(), file.getFileId(), file.getCharacterCount());
+                    log(String.format("[%d/%d] %s - %s (%d文字)", 
+                        currentModNum, totalMods, file.getModName(),
+                        file.isHasExistingJaJp() ? "既存ja_jp有" : "翻訳対象",
+                        file.getCharacterCount()));
                 }
             } catch (Exception e) {
                 log(String.format("[%d/%d][エラー] %s: %s", 
@@ -92,36 +98,40 @@ public class ModFileAnalyzer {
             }
         }
         
+        report.writeTo(logger);
         updateProgress(" ");
         return files;
     }
     
     /**
-     * 単一のMod JARファイルを解析します。
+     * 単一のMod JARファイルを解析します。en_us.jsonを持つnamespaceごとに1件生成します。
      * @param jarFile JARファイル
-     * @return 翻訳対象ファイル
+     * @return 翻訳対象ファイルのリスト（en_us.jsonがなければ空）
      * @throws Exception 解析エラー
      */
-    private TranslatableFile analyzeJar(File jarFile) throws Exception {
-        JarFileAnalyzer.LanguageFileInfo langInfo = jarAnalyzer.analyze(jarFile);
+    private List<TranslatableFile> analyzeJar(File jarFile) throws Exception {
+        List<LanguageFileInfo> infos = jarAnalyzer.analyze(jarFile);
+        List<TranslatableFile> result = new ArrayList<TranslatableFile>();
+        int enUsCount = JarFileAnalyzer.countEnUs(infos);
+        String baseName = jarFile.getName().replace(".jar", "");
         
-        if (langInfo.modId == null || langInfo.enUsContent == null) {
-            return null;
+        for (LanguageFileInfo langInfo : infos) {
+            if (langInfo.enUsContent == null) {
+                continue;
+            }
+            int charCount = charCounter.countCharacters(langInfo.enUsContent);
+            result.add(TranslatableFile.createModLangFile(
+                JarFileAnalyzer.buildDisplayName(baseName, langInfo.modId, enUsCount),
+                jarFile.getAbsolutePath(),
+                langInfo.langFolderPath,
+                langInfo.modId,
+                charCount,
+                langInfo.hasJaJp,
+                langInfo.enUsContent,
+                langInfo.jaJpContent
+            ));
         }
-        
-        int charCount = charCounter.countCharacters(langInfo.enUsContent);
-        String modName = jarFile.getName().replace(".jar", "");
-        
-        return TranslatableFile.createModLangFile(
-            modName,
-            jarFile.getAbsolutePath(),
-            langInfo.langFolderPath,
-            langInfo.modId,
-            charCount,
-            langInfo.hasJaJp,
-            langInfo.enUsContent,
-            langInfo.jaJpContent
-        );
+        return result;
     }
     
     /**

@@ -1,17 +1,21 @@
 package io.github.pazakasin.minecraft.modpack.translator.service.modpack;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 
 import io.github.pazakasin.minecraft.modpack.translator.model.ModProcessingResult;
 import io.github.pazakasin.minecraft.modpack.translator.service.TranslationService;
 import io.github.pazakasin.minecraft.modpack.translator.service.callback.LogCallback;
 import io.github.pazakasin.minecraft.modpack.translator.service.processor.CharacterCounter;
 import io.github.pazakasin.minecraft.modpack.translator.service.processor.JarFileAnalyzer;
+import io.github.pazakasin.minecraft.modpack.translator.service.processor.LanguageFileInfo;
 import io.github.pazakasin.minecraft.modpack.translator.service.processor.LanguageFileWriter;
+import io.github.pazakasin.minecraft.modpack.translator.service.processor.NamespaceUsageReport;
 
 /**
  * Mod JARファイルの処理を担当するクラス。
- * JAR内の言語ファイル解析、翻訳、出力を実行。
+ * JAR内の言語ファイル解析、翻訳、出力をnamespace単位で実行。
  */
 public class ModJarProcessor {
 	/** 翻訳サービス。 */
@@ -45,50 +49,78 @@ public class ModJarProcessor {
 	}
 	
 	/**
-	 * 単一のMod JARファイルを処理します。
+	 * 単一のMod JARファイルを処理します。en_us.jsonを持つnamespaceごとに結果を1件返します。
 	 * @param jarFile 処理対象JARファイル
 	 * @param currentModNum 現在のMod番号
 	 * @param totalMods 全Mod数
-	 * @return 処理結果
+	 * @param report namespace集計（null可）
+	 * @return 処理結果のリスト（en_us.jsonがない場合はスキップ結果1件）
 	 * @throws Exception 処理エラー
 	 */
-	public ModProcessingResult process(File jarFile, int currentModNum, int totalMods) throws Exception {
+	public List<ModProcessingResult> process(File jarFile, int currentModNum, int totalMods,
+			NamespaceUsageReport report) throws Exception {
+		List<ModProcessingResult> results = new ArrayList<ModProcessingResult>();
+		String baseName = jarFile.getName().replace(".jar", "");
+		List<LanguageFileInfo> infos = jarAnalyzer.analyze(jarFile);
+		int enUsCount = JarFileAnalyzer.countEnUs(infos);
+		
+		if (enUsCount == 0) {
+			ModProcessingResult result = new ModProcessingResult();
+			result.modName = baseName;
+			result.langFolderPath = infos.isEmpty() ? "見つかりません" : infos.get(0).langFolderPath;
+			result.hasJaJp = !infos.isEmpty() && infos.get(0).hasJaJp;
+			result.translationSuccess = false;
+			results.add(result);
+			return results;
+		}
+		
+		for (LanguageFileInfo langInfo : infos) {
+			if (langInfo.enUsContent == null) {
+				continue;
+			}
+			ModProcessingResult result = processNamespace(jarFile, langInfo,
+					JarFileAnalyzer.buildDisplayName(baseName, langInfo.modId, enUsCount));
+			if (report != null) {
+				report.add(jarFile.getName(), langInfo.modId, result.characterCount);
+			}
+			results.add(result);
+		}
+		return results;
+	}
+	
+	/**
+	 * 1つのnamespaceの言語ファイルを翻訳・出力します。
+	 * @param jarFile 処理対象JARファイル（ログ用）
+	 * @param langInfo namespaceの言語ファイル情報
+	 * @param displayName 表示用Mod名
+	 * @return 処理結果
+	 */
+	private ModProcessingResult processNamespace(File jarFile, LanguageFileInfo langInfo, String displayName) {
 		ModProcessingResult result = new ModProcessingResult();
-		result.modName = jarFile.getName().replace(".jar", "");
-		
-		JarFileAnalyzer.LanguageFileInfo langInfo = jarAnalyzer.analyze(jarFile);
-		
+		result.modName = displayName;
 		result.langFolderPath = langInfo.langFolderPath;
 		result.hasEnUs = langInfo.hasEnUs;
 		result.hasJaJp = langInfo.hasJaJp;
-		
-		if (langInfo.modId == null || langInfo.enUsContent == null) {
-			result.translationSuccess = false;
-			return result;
-		}
-		
 		result.characterCount = charCounter.countCharacters(langInfo.enUsContent);
 		
-		if (langInfo.jaJpContent != null) {
-			fileWriter.writeLanguageFiles(langInfo.modId, langInfo.enUsContent, langInfo.jaJpContent);
-			result.translationSuccess = true;
-		} else {
-			try {
-				String translatedContent = translationService.translateJsonFile(langInfo.enUsContent);
-				
-				fileWriter.writeLanguageFiles(langInfo.modId, langInfo.enUsContent, translatedContent);
-				result.translated = true;
+		try {
+			if (langInfo.jaJpContent != null) {
+				fileWriter.writeLanguageFiles(langInfo.modId, langInfo.enUsContent, langInfo.jaJpContent);
 				result.translationSuccess = true;
-			} catch (Exception e) {
+			} else {
 				result.translated = true;
-				result.translationSuccess = false;
-				result.errorException = e;
-				
+				String translatedContent = translationService.translateJsonFile(langInfo.enUsContent);
+				fileWriter.writeLanguageFiles(langInfo.modId, langInfo.enUsContent, translatedContent);
+				result.translationSuccess = true;
+			}
+		} catch (Exception e) {
+			result.translationSuccess = false;
+			result.errorException = e;
+			if (result.translated) {
 				// エラー時に処理中のファイル内容をログ出力
 				logProcessingContent(jarFile.getName(), langInfo.modId, langInfo.enUsContent, e);
 			}
 		}
-		
 		return result;
 	}
 	

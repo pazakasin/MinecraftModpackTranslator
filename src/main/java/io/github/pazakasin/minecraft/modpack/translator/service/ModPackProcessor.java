@@ -17,6 +17,7 @@ import io.github.pazakasin.minecraft.modpack.translator.service.modpack.ModLangu
 import io.github.pazakasin.minecraft.modpack.translator.service.modpack.OpenLoaderProcessor;
 import io.github.pazakasin.minecraft.modpack.translator.service.modpack.SelectiveTranslationHandler;
 import io.github.pazakasin.minecraft.modpack.translator.service.processor.LanguageFileWriter;
+import io.github.pazakasin.minecraft.modpack.translator.service.processor.NamespaceUsageReport;
 import io.github.pazakasin.minecraft.modpack.translator.service.quest.QuestFileProcessor;
 import io.github.pazakasin.minecraft.modpack.translator.service.backup.BackupManager;
 
@@ -66,7 +67,7 @@ public class ModPackProcessor {
 		this.progressUpdater = progressUpdater;
 		this.outputDir = new File("output/MyJPpack");
 		
-		LanguageFileWriter fileWriter = new LanguageFileWriter(outputDir);
+		LanguageFileWriter fileWriter = new LanguageFileWriter(outputDir, logger);
 		
 		this.modJarProcessor = new ModJarProcessor(translationService, logger, fileWriter);
 		this.questProcessor = new QuestFileProcessor(translationService, logger, outputDir);
@@ -121,24 +122,29 @@ public class ModPackProcessor {
 		int skipped = 0;
 		int translated = 0;
 		int totalMods = jarFiles.length;
+		NamespaceUsageReport nsReport = new NamespaceUsageReport();
 		
 		for (int modIndex = 0; modIndex < jarFiles.length; modIndex++) {
 			File jarFile = jarFiles[modIndex];
 			int currentModNum = modIndex + 1;
 			
 			try {
-				ModProcessingResult result = modJarProcessor.process(jarFile, currentModNum, totalMods);
-				results.add(result);
+				List<ModProcessingResult> jarResults = modJarProcessor.process(
+						jarFile, currentModNum, totalMods, nsReport);
 				processed++;
 				
-				logProcessingResult(result, currentModNum, totalMods, jarFile.getName());
-				
-				if (result.hasJaJp && !result.translated) {
-					skipped++;
-				} else if (result.translated && result.translationSuccess) {
-					translated++;
-				} else if (!result.hasEnUs) {
-					skipped++;
+				for (ModProcessingResult result : jarResults) {
+					results.add(result);
+					logProcessingResult(result, currentModNum, totalMods,
+							jarResults.size() > 1 ? result.modName : jarFile.getName());
+					
+					if (result.hasJaJp && !result.translated) {
+						skipped++;
+					} else if (result.translated && result.translationSuccess) {
+						translated++;
+					} else if (!result.hasEnUs) {
+						skipped++;
+					}
 				}
 			} catch (Exception e) {
 				log(String.format("[%d/%d][エラー] %s: %s",
@@ -150,6 +156,7 @@ public class ModPackProcessor {
 			}
 		}
 		
+		nsReport.writeTo(logger);
 		logSummary(processed, translated, skipped);
 		
 		processQuests(results);
