@@ -60,7 +60,20 @@ public class QuestTranslationHelper {
 	 * @throws Exception 翻訳エラー
 	 */
 	public Map<String, String> translateLangFileTexts(List<LangFileSNBTExtractor.ExtractedText> texts, 
-			final ProgressCallback externalProgressCallback) throws Exception {
+			ProgressCallback externalProgressCallback) throws Exception {
+		return translateLangFileTexts(texts, externalProgressCallback, null);
+	}
+	
+	/**
+	 * Lang File用のテキストを翻訳します。
+	 * @param texts 翻訳対象テキストリスト
+	 * @param externalProgressCallback 外部からの進捗コールバック
+	 * @param fileLabel 書式警告に記録するファイル名（null可）
+	 * @return キーと翻訳結果のマップ
+	 * @throws Exception 翻訳エラー
+	 */
+	public Map<String, String> translateLangFileTexts(List<LangFileSNBTExtractor.ExtractedText> texts, 
+			final ProgressCallback externalProgressCallback, String fileLabel) throws Exception {
 		JsonObject combined = new JsonObject();
 		for (LangFileSNBTExtractor.ExtractedText text : texts) {
 			combined.addProperty(text.getKey(), text.getValue());
@@ -77,7 +90,7 @@ public class QuestTranslationHelper {
 						}
 						// ログ出力は削除（状態列で表示）
 					}
-				});
+				}, fileLabel);
 		
 		JsonObject result = gson.fromJson(translatedJson, JsonObject.class);
 		Map<String, String> translations = new HashMap<>();
@@ -106,7 +119,20 @@ public class QuestTranslationHelper {
 	 * @throws Exception 翻訳エラー
 	 */
 	public Map<String, String> translateQuestFileTexts(Map<String, String> texts, 
-			final ProgressCallback externalProgressCallback) throws Exception {
+			ProgressCallback externalProgressCallback) throws Exception {
+		return translateQuestFileTexts(texts, externalProgressCallback, null);
+	}
+	
+	/**
+	 * Quest File用のテキストを翻訳します。
+	 * @param texts キーと値のマップ
+	 * @param externalProgressCallback 外部からの進捗コールバック
+	 * @param fileLabel 書式警告に記録するファイル名（null可）
+	 * @return キーと翻訳結果のマップ
+	 * @throws Exception 翻訳エラー
+	 */
+	public Map<String, String> translateQuestFileTexts(Map<String, String> texts, 
+			final ProgressCallback externalProgressCallback, String fileLabel) throws Exception {
 		JsonObject combined = new JsonObject();
 		for (Map.Entry<String, String> entry : texts.entrySet()) {
 			combined.addProperty(entry.getKey(), entry.getValue());
@@ -123,7 +149,7 @@ public class QuestTranslationHelper {
 						}
 						// ログ出力は削除（状態列で表示）
 					}
-				});
+				}, fileLabel);
 		
 		JsonObject result = gson.fromJson(translatedJson, JsonObject.class);
 		Map<String, String> translations = new HashMap<>();

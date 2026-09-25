@@ -4,6 +4,8 @@ import io.github.pazakasin.minecraft.modpack.translator.service.callback.Progres
 import io.github.pazakasin.minecraft.modpack.translator.service.processor.JsonLangFlattener;
 import io.github.pazakasin.minecraft.modpack.translator.service.provider.*;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.Map;
 
 import com.google.gson.JsonObject;
@@ -38,7 +40,40 @@ public class TranslationService {
 
     /** 配列等を含むJSONの展開・復元を行うクラス。 */
     private final JsonLangFlattener flattener = new JsonLangFlattener();
-    
+
+    /** 同一原文の重複排除と、実行中の翻訳済みMap（プロバイダー切替後も実行単位で保持）。 */
+    private final TranslationDeduplicator deduplicator = new TranslationDeduplicator();
+
+    /** 書式コード不一致の警告一覧。 */
+    private final FormatWarningReport formatWarnings = new FormatWarningReport();
+
+    /**
+     * 翻訳実行の開始時に呼び、翻訳済みMapと書式警告をクリアします。
+     * 前回の実行結果を持ち越さないため、実行ごとに必ず呼ぶこと。
+     */
+    public void startRun() {
+        deduplicator.clear();
+        formatWarnings.clear();
+    }
+
+    /**
+     * 書式コード不一致の警告をCSVに書き出します。
+     * @param dir 出力先フォルダ
+     * @return 出力したファイルの絶対パス（警告0件の場合はnull）
+     * @throws IOException 書き込みエラー
+     */
+    public String writeFormatWarnings(File dir) throws IOException {
+        return formatWarnings.writeCsv(dir);
+    }
+
+    /**
+     * 書式コード不一致の警告件数を取得します。
+     * @return 件数
+     */
+    public int getFormatWarningCount() {
+        return formatWarnings.size();
+    }
+
     /**
      * TranslationServiceのデフォルトコンストラクタ。
      * 初期プロバイダーはGoogleに設定。
@@ -140,6 +175,20 @@ public class TranslationService {
      * @throws Exception 翻訳エラー
      */
     public String translateJsonFile(String jsonContent, ProgressCallback progressCallback) throws Exception {
+        return translateJsonFile(jsonContent, progressCallback, null);
+    }
+
+    /**
+     * JSON形式の言語ファイルを翻訳します（書式警告にファイル名を記録）。
+     * @param jsonContent 翻訳元のJSONコンテンツ
+     * @param progressCallback 進捗コールバック（null可）
+     * @param fileLabel 書式警告に記録するファイル名（null可）
+     * @return 翻訳後のJSONコンテンツ
+     * @throws IllegalStateException APIキー未設定
+     * @throws Exception 翻訳エラー
+     */
+    public String translateJsonFile(String jsonContent, ProgressCallback progressCallback,
+            String fileLabel) throws Exception {
         if (currentProvider == null) {
             throw new IllegalStateException("APIキーが設定されていません");
         }
@@ -155,9 +204,10 @@ public class TranslationService {
 
         // 【配列等を含むJSON対策】
         // 各プロバイダーは「キー→文字列」の単純なJSONのみを想定しているため、
-        // 値に配列・数値・真偽値・入れ子オブジェクトを含む場合は、翻訳前に
-        // 文字列のみの形へ展開し、翻訳後に元の構造へ復元する。
-        // 値がすべて文字列の従来形式のファイルは、これまでどおりそのまま渡す。
+        // 翻訳前に文字列のみの形へ展開し、翻訳後に元の構造へ復元する。
+        // 【同一原文の重複排除】
+        // 展開した値は、同じ原文を1つにまとめ、実行中の翻訳済みMapにあるものは再利用する
+        // （値がすべて文字列のファイルも同じ経路を通る）。
         JsonObject root;
         try {
             root = flattener.parse(sanitizedContent);
@@ -165,16 +215,29 @@ public class TranslationService {
             // 解析できない場合は従来どおりプロバイダーに任せる（エラーはプロバイダー側で通知）
             return currentProvider.translateJsonFile(sanitizedContent, progressCallback);
         }
-        if (flattener.isSimple(root)) {
-            return currentProvider.translateJsonFile(sanitizedContent, progressCallback);
-        }
 
         Map<String, String> flat = flattener.flatten(root);
         if (flat.isEmpty()) {
             return flattener.toJson(root);
         }
-        String translatedFlat = currentProvider.translateJsonFile(flattener.toJson(flat), progressCallback);
-        return flattener.toJson(flattener.unflatten(root, flattener.readFlat(translatedFlat)));
+        Map<String, String> translated = deduplicator.translate(flat, currentProvider, progressCallback);
+        checkFormat(flat, translated, fileLabel);
+        return flattener.toJson(flattener.unflatten(root, translated));
+    }
+
+    /**
+     * 原文と訳文の書式コードを比較し、不一致を警告に追加します。
+     * @param flat キー→原文
+     * @param translated キー→訳文
+     * @param fileLabel ファイル名（null可）
+     */
+    private void checkFormat(Map<String, String> flat, Map<String, String> translated, String fileLabel) {
+        for (Map.Entry<String, String> entry : flat.entrySet()) {
+            String value = translated.get(entry.getKey());
+            if (value != null && !FormatCodeProtector.isConsistent(entry.getValue(), value)) {
+                formatWarnings.add(fileLabel, entry.getKey(), entry.getValue(), value);
+            }
+        }
     }
 
     /**

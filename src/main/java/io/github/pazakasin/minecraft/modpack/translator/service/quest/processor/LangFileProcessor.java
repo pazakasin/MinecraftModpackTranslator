@@ -108,7 +108,8 @@ public class LangFileProcessor {
 				charCount = countCharacters(texts);
 			}
 			
-			Map<String, String> translations = helper.translateLangFileTexts(texts, progressCallback);
+			Map<String, String> translations = helper.translateLangFileTexts(texts, progressCallback,
+					"FTB Quests Lang (" + langFile.getName() + ")");
 			
 			String originalContent = Files.readString(langFile.toPath(), StandardCharsets.UTF_8);
 			String translatedContent = buildTranslatedLangContent(originalContent, translations);

@@ -118,15 +118,25 @@ public class GoogleTranslationProvider implements TranslationProvider {
             conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
             conn.setDoOutput(true);
             
-            JsonObject requestBody = new JsonObject();
+            // 書式コード保護のためHTMLモードで送信（翻訳不要なテキストは送らない）
+            List<String> results = new ArrayList<>(texts);
+            List<Integer> targetIndexes = new ArrayList<>();
             JsonArray qArray = new JsonArray();
-            for (String text : texts) {
-                qArray.add(text);
+            for (int i = 0; i < texts.size(); i++) {
+                if (FormatCodeProtector.needsTranslation(texts.get(i))) {
+                    targetIndexes.add(i);
+                    qArray.add(FormatCodeProtector.protect(texts.get(i)));
+                }
             }
+            if (targetIndexes.isEmpty()) {
+                return results;
+            }
+
+            JsonObject requestBody = new JsonObject();
             requestBody.add("q", qArray);
             requestBody.addProperty("source", "en");
             requestBody.addProperty("target", "ja");
-            requestBody.addProperty("format", "text");
+            requestBody.addProperty("format", "html");
             
             try (OutputStream os = conn.getOutputStream()) {
                 byte[] input = requestBody.toString().getBytes(StandardCharsets.UTF_8);
@@ -146,10 +156,11 @@ public class GoogleTranslationProvider implements TranslationProvider {
             JsonArray translations = jsonResponse.getAsJsonObject("data")
                 .getAsJsonArray("translations");
             
-            List<String> results = new ArrayList<>();
             for (int i = 0; i < translations.size(); i++) {
-                results.add(translations.get(i).getAsJsonObject()
-                    .get("translatedText").getAsString());
+                int index = targetIndexes.get(i);
+                String translatedText = translations.get(i).getAsJsonObject()
+                    .get("translatedText").getAsString();
+                results.set(index, FormatCodeProtector.restore(translatedText, texts.get(index)));
             }
             return results;
         } finally {

@@ -87,7 +87,8 @@ public class QuestFileContentProcessor {
 			
 			// ログ出力を削除（状態列で表示）
 			
-			Map<String, String> translations = helper.translateQuestFileTexts(texts, progressCallback);
+			Map<String, String> translations = helper.translateQuestFileTexts(texts, progressCallback,
+					"FTB Quests (" + questFile.getName() + ")");
 			
 			String originalContent = Files.readString(questFile.toPath(), StandardCharsets.UTF_8);
 			String translatedContent = parser.buildTranslatedContent(questFile, translations);

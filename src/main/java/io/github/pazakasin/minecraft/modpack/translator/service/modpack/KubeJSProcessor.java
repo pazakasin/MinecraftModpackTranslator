@@ -217,7 +217,7 @@ public class KubeJSProcessor {
 				updateFileState(file);
 				// ログ出力を削除（状態列で表示）
 			}
-		});
+		}, file.getModName() + " (" + file.getLangFolderPath() + ")");
 	}
 	
 	/**

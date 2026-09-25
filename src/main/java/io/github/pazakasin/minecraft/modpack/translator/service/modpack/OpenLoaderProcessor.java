@@ -160,7 +160,7 @@ public class OpenLoaderProcessor {
 				file.setProgress(current, total);
 				updateFileState(file);
 			}
-		});
+		}, file.getModName() + " (" + file.getLangFolderPath() + ")");
 	}
 
 	/**

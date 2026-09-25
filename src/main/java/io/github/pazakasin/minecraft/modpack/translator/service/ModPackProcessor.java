@@ -53,6 +53,9 @@ public class ModPackProcessor {
 	/** バックアップマネージャー。 */
 	private final BackupManager backupManager;
 	
+	/** 翻訳サービス（実行開始時の初期化と書式警告の出力に使用）。 */
+	private final TranslationService translationService;
+	
 	/**
 	 * ModPackProcessorのコンストラクタ。
 	 * @param inputPath 処理対象ディレクトリパス
@@ -63,6 +66,7 @@ public class ModPackProcessor {
 	public ModPackProcessor(String inputPath, TranslationService translationService,
 			LogCallback logger, ProgressUpdateCallback progressUpdater) {
 		this.inputPath = inputPath;
+		this.translationService = translationService;
 		this.logger = logger;
 		this.progressUpdater = progressUpdater;
 		this.outputDir = new File("output/MyJPpack");
@@ -201,10 +205,29 @@ public class ModPackProcessor {
 	 * @throws Exception ファイルアクセスエラー等
 	 */
 	public List<ModProcessingResult> processSelectedFiles(List<TranslatableFile> selectedFiles) throws Exception {
+		translationService.startRun();
 		List<ModProcessingResult> results = selectiveHandler.process(selectedFiles);
+		writeFormatWarnings();
 		writePackMcmeta();
 		backupOutputFolder();
 		return results;
+	}
+	
+	/**
+	 * 書式コード不一致の警告をoutputフォルダ直下にCSV出力し、件数をログに出します。
+	 * 出力に失敗しても翻訳結果には影響させない。
+	 */
+	private void writeFormatWarnings() {
+		try {
+			String path = translationService.writeFormatWarnings(outputDir.getParentFile());
+			if (path == null) {
+				log("書式コード不一致なし");
+			} else {
+				log("書式コード不一致 " + translationService.getFormatWarningCount() + "件: " + path);
+			}
+		} catch (Exception e) {
+			log("書式コード不一致の一覧を出力できませんでした: " + e.getMessage());
+		}
 	}
 	
 	/**
